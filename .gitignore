@@ -1,0 +1,5 @@
+state/
+secrets/
+*.dat
+*.bak
+/catalog/upstream/*

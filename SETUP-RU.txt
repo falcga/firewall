@@ -1,0 +1,55 @@
+Сборка домашнего шлюза (ПК по Ethernet ↔ Pi Wi‑Fi): Flowseal-листы только как текст для merge, DPI — bol-van/zapret на Linux,
+VPN/UI — Mihomo (+ geodata/runetfreedom), панель — nginx + shell2http на loopback.
+
+0) Автоустановка (стиль Orb: detect дистрибутива через /etc/os-release)
+   Из корня клона: sudo SUBSCRIPTION_URL='https://…' ./install.sh
+   Переменные: SKIP_BINARIES=1 (без mihomo/shell2http), SKIP_SYNC=1 (~90 МБ без geodata/list), SKIP_SYSTEMD=1, DRY_RUN=1.
+
+1) Пакеты
+   sudo apt update
+   sudo apt install -y curl python3 nftables iptables nginx apache2-utils
+
+2) Репозиторий
+   sudo rsync /путь/firewall /opt/firewall --delete-before (или git clone …)
+   cd /opt/firewall && chmod +x scripts/*.sh contrib/shell2http-launcher.sh
+
+3) Подписка
+   mkdir -p /opt/firewall/secrets
+   cp contrib/subscription.url.example /opt/firewall/secrets/subscription.url
+   chmod 600 /opt/firewall/secrets/subscription.url
+   nano …/secrets/subscription.url              # ваш URL вида https://...
+
+4) Однократная загрузка Flowse + geodata (~90 МБ) и сборка конфигов
+   ./scripts/sync-zapret-lists-upstream.sh
+   ./scripts/sync-geodat.sh
+   ./scripts/build-lists.sh
+   ./scripts/gen-mihomo-config.sh
+
+   (Ваш файл domens.txt можно разложить: cp domens.txt catalog/user/import-domens.txt &&
+   ./scripts/import-domens-to-catalog.sh && ./scripts/build-lists.sh)
+
+5) Mihomo
+   установите официальный бинарь (armhf/arm64) в /usr/local/bin/mihomo
+   systemd: скопируйте contrib/mihomo.service.example → /etc/systemd/system/mihomo.service и поправьте пути при необходимости
+   sudo systemctl daemon-reload && sudo systemctl enable --now mihomo
+
+6) Zapret от bol-van
+   см. официальный install_easy / systemd и файл contrib/zapret-bolvan-note.txt как привязать state/generated/*
+
+7) Dashboard API (shell2http)
+   выпуски msoap/shell2http нужной архитектуры → /usr/local/bin/shell2http
+   sudo tee /etc/systemd/system/firewall-shell2http.service < contrib/shell2http.service.example   # после правки FIREWALL_ROOT
+   sudo systemctl daemon-reload && sudo systemctl enable --now firewall-shell2http.service
+
+8) Nginx поверх localhost:8899
+   sudo openssl passwd … (или apache2-utils sudo apt install -y apache2-utils)
+   sudo htpasswd -c /etc/nginx/.firewall_dashboard_htpasswd admin
+   скопируйте contrib/nginx-dashboard.conf.example как отдельный server в sites-available
+   nginx -t && sudo systemctl reload nginx
+   браузер: http://192.168.50.2:8088/dashboard/
+
+Память 1 ГБ: не жмите «Обновить всё» слишком часто во время активного трафика; лёгкая кнопка «sync-build» лишь тянет Flowse текст.
+
+Режим полного VPN туннеля: перед gen-mihomo-config.sh указать FIREWALL_VPN_ROUTE=tunnel и перегенерировать.
+
+Дополнительно: sing-box + srs есть в том же GitHub‑релизе runetfreedom/russia‑v2ray-rules-dat при желании заменить клиент Mihomo тем же каталогом geodata.

@@ -1,0 +1,16 @@
+## /etc/systemd/system/mihomo.service — скопируйте после установки Mihomo aarch32/aarch64
+[Unit]
+Description=Mihomo service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/firewall/state/mihomo
+ExecStart=/usr/local/bin/mihomo -d /opt/firewall/state/mihomo -f config.yaml
+Restart=on-failure
+LimitNOFILE=infinity
+
+[Install]
+WantedBy=multi-user.target
