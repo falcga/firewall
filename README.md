@@ -3,7 +3,7 @@ VPN/UI — Mihomo (+ geodata/runetfreedom), панель — nginx + shell2http 
 
 0) Автоустановка (стиль Orb: detect дистрибутива через /etc/os-release)
    Из корня клона: sudo SUBSCRIPTION_URL='https://…' ./install.sh
-   Переменные: SKIP_BINARIES=1 (без mihomo/shell2http), SKIP_SYNC=1 (~90 МБ без geodata/list), SKIP_SYSTEMD=1, DRY_RUN=1.
+   Переменные: SKIP_BINARIES=1 (без mihomo/shell2http), SKIP_SYNC=1 (~90МБ без geodata/list), SKIP_SYSTEMD=1, DRY_RUN=1.
 
 1) Пакеты
    sudo apt update
@@ -19,7 +19,7 @@ VPN/UI — Mihomo (+ geodata/runetfreedom), панель — nginx + shell2http 
    chmod 600 /opt/firewall/secrets/subscription.url
    nano …/secrets/subscription.url              # ваш URL вида https://...
 
-4) Однократная загрузка Flowse + geodata (~90 МБ) и сборка конфигов
+4) Однократная загрузка Flowse + geodata (~90МБ) и сборка конфигов
    ./scripts/sync-zapret-lists-upstream.sh
    ./scripts/sync-geodat.sh
    ./scripts/build-lists.sh
@@ -48,7 +48,7 @@ VPN/UI — Mihomo (+ geodata/runetfreedom), панель — nginx + shell2http 
    nginx -t && sudo systemctl reload nginx
    браузер: http://192.168.50.2:8088/dashboard/
 
-Память 1 ГБ: не жмите «Обновить всё» слишком часто во время активного трафика; лёгкая кнопка «sync-build» лишь тянет Flowse текст.
+Память 1ГБ: не жмите «Обновить всё» слишком часто во время активного трафика; лёгкая кнопка «sync-build» лишь тянет Flowse текст.
 
 Режим полного VPN туннеля: перед gen-mihomo-config.sh указать FIREWALL_VPN_ROUTE=tunnel и перегенерировать.
 
