@@ -1,0 +1,2 @@
+# По одному домену в строку (поддомены трактуются как wildcard в nfqws).
+# Скопируйте без .example: domains-zapret.txt — для DPI (обход через zapret).

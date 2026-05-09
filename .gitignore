@@ -1,6 +1,5 @@
-*.log
-*.tmp
-state/geodata/*
-state/generated/*
-secrets/*
-!secrets/.gitkeep
+state/
+secrets/
+*.dat
+*.bak
+/catalog/upstream/*

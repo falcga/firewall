@@ -1,0 +1,21 @@
+Публикация на GitHub из корня этого репо (выберите свой URL/имя; токены в чат не вставлять).
+
+HTTPS + PAT уже в credential helper:
+
+  git remote add origin https://github.com/USER/firewall.git
+  git branch -M main
+  git add -A
+  git status
+  git commit -m "init firewall stack installer"
+  git push -u origin main
+
+CLI gh (oauth в браузере):
+
+  gh auth login
+  gh repo create USER/firewall --private --source=. --remote=origin --push
+
+SSH:
+
+  git remote add origin git@github.com:USER/firewall.git
+  ssh -T git@github.com
+  git push -u origin master
