@@ -1,169 +1,156 @@
-# Firewall (домашний шлюз)
+# Firewall (Домашний шлюз)
 
-Стек под гибрид **ПК/Ethernet ↔ Pi/Wi‑Fi**: списки в духе **Flowseal** как текст для merge, DPI через **bol-van/zapret** на Linux, клиент — **Mihomo** (+ geodata runetfreedom), панель — **nginx** + **shell2http** на loopback.
+Стек для организации домашнего шлюза на Raspberry Pi / Linux с обходом DPI и проксированием трафика.
 
-**Детально по шагам (RU):** [SETUP-RU.txt](SETUP-RU.txt).
+**Компоненты:**
+- **Flowseal** — списки заблокированных доменов/IP
+- **bol-van/zapret** — обход DPI (nfqws/tpws)
+- **Mihomo** (Clash Meta) — прокси-клиент с geodata
+- **nginx + shell2http** — веб-панель управления
+- **runetfreedom** — геодата для Mihomo
 
----
+## Быстрая установка
+
+```bash
+# 1. Клонировать репозиторий
+git clone https://github.com/falcga/firewall.git /tmp/fw
+cd /tmp/fw
+
+# 2. Запустить установку (подставьте свою подписку)
+sudo env SUBSCRIPTION_URL='https://ВАША_ПОДПИСКА' ./install.sh -r /opt/firewall
+
+# 3. Запустить сервисы
+sudo firewall start
+```
+
+**Флаги установки:**
+| Флаг | Описание |
+|------|----------|
+| `SKIP_BINARIES=1` | Не скачивать Mihomo/shell2http |
+| `SKIP_SYNC=1` | Пропустить первый sync |
+| `SKIP_SYSTEMD=1` | Не создавать systemd-сервисы |
+| `DRY_RUN=1` | Показать команды без выполнения |
+
+## CLI управление
+
+После установки используйте команду `firewall`:
+
+```bash
+sudo firewall start       # Запустить mihomo + shell2http + zapret
+sudo firewall stop        # Остановить все сервисы
+sudo firewall restart     # Перезапустить все сервисы
+sudo firewall status      # Показать статус, диск, списки
+sudo firewall settings    # Интерактивная настройка (TUI)
+sudo firewall update      # Обновить списки, geodata, подписку
+sudo firewall logs        # Показать последние логи
+sudo firewall install     # Установить/переустановить компоненты
+sudo firewall help        # Справка
+```
+
+## TUI настройка
+
+```bash
+sudo bash /opt/firewall/scripts/setup-tui.sh
+```
+
+**Разделы TUI:**
+- 🌐 **VPN режим** — split (только заблокированные) / tunnel (весь трафик)
+- 🛡️ **Zapret DPI** — установка zapret, выбор стратегий (nfqws/tpws), настройка параметров
+- 📋 **Списки хостов** — импорт доменов, просмотр/обновление списков
+- 🖥️ **Панель** — настройка nginx + shell2http
+- 🔧 **Сервисы** — запуск/остановка/рестарт, автозапуск
+- ⚡ **Powerbank** — режим энергосбережения
+- 🔄 **Синхронизация** — обновление списков, geodata, подписки
+- 📊 **Статус** — состояние всех компонентов
+
+## Веб-панель
+
+```
+http://<IP_на_Pi>:8088/dashboard/
+```
+
+**API endpoints:**
+- `POST /api/full-refresh` — полное обновление
+- `POST /api/subscription-refresh` — обновить подписку
+- `POST /api/sync-build` — синхронизировать списки
+- `POST /api/zapret-restart` — рестарт zapret
+- `POST /api/mihomo-restart` — рестарт mihomo
+- `POST /api/bypass-off` — выключить обходы
+- `POST /api/bypass-on` — включить обходы
+- `POST /api/low-power-on/off` — powerbank режим
+
+## Структура проекта
+
+```
+firewall/
+├── install.sh              ← точка входа (установщик)
+├── firewall                ← CLI команда
+├── README.md
+├── .gitignore
+├── catalog/
+│   ├── upstream/           ← списки Flowseal (скачиваются)
+│   └── user/               ← пользовательские домены
+├── contrib/
+│   └── install/
+│       └── parts/          ← оригинальные parts из falcga/firewall
+├── deploy/
+├── scripts/
+│   └── setup-tui.sh        ← интерактивная настройка
+├── secrets/
+│   └── subscription.url    ← ваша подписка (создаётся при установке)
+├── srv/
+│   └── dashboard/
+│       └── index.html      ← веб-панель
+└── state/
+    ├── generated/          ← сгенерированные списки zapret
+    └── geodata/            ← geoip.dat + geosite.dat
+```
 
 ## Требования
 
-- Linux с `curl`/`wget`, `git`, желательно `systemd`; на Pi обычно **Debian / Raspberry Pi OS**.
-- Свободное место для геодаты и списков (порядка **~100 МБ+** после первых sync).
-- **SUBSCRIPTION_URL** — HTTPS-ссылка на вашу подписку **Clash / Mihomo** (не используйте мой URL в документации — подставляйте свой).
-
----
-
-## One-liner: удалённая установка
-
-Подставьте **свои** значения (`YOUR_ORG`, `YOUR_REPO` или любой свой `FIREWALL_REPO_URL`). Скрипт клонирует репозиторий в `FIREWALL_CLONE` (по умолчанию `/tmp/fw`), затем вызывает `install.sh`.
-
-### 1. Полная установка (дефолт)
-
-Пакеты, копирование в `/opt/firewall`, Mihomo/shell2http с GitHub, первый sync, unit-файлы:
-
-```bash
-sudo apt-get update && sudo apt-get install -y curl git \
-  && curl -fsSL "https://raw.githubusercontent.com/falcga/firewall/main/contrib/remote-install.sh" \
-  | sudo -E env \
-      SUBSCRIPTION_URL='https://ВАША_ПОДПИСКА' \
-      FIREWALL_REPO_URL='https://github.com/falcga/firewall.git' \
-      sh -
-```
-
-На ветке не `main` задайте `FIREWALL_BRANCH=staging`.
-
-### 2. Медленный GitHub или ручная закачка бинарников
-
-Не качает Mihomo и shell2http через установщик; доставьте бинари в `/usr/local/bin` сами ([SETUP-RU](SETUP-RU.txt), п.5–7):
-
-```bash
-curl -fsSL "https://raw.githubusercontent.com/falcga/firewall/main/contrib/remote-install.sh" \
-  | sudo -E env \
-      SUBSCRIPTION_URL='https://ВАША_ПОДПИСКА' \
-      FIREWALL_REPO_URL='https://github.com/falcga/firewall.git' \
-      SKIP_BINARIES=1 \
-      sh -
-```
-
-### 3. Уже есть списки / не гонять тяжёлый первый sync
-
-Отключает шаг синхронизации во время установки (позже выполните скрипты из `/opt/firewall/scripts/`):
-
-```bash
-curl -fsSL "https://raw.githubusercontent.com/falcga/firewall/main/contrib/remote-install.sh" \
-  | sudo -E env \
-      SUBSCRIPTION_URL='https://ВАША_ПОДПИСКА' \
-      FIREWALL_REPO_URL='https://github.com/falcga/firewall.git' \
-      SKIP_SYNC=1 \
-      sh -
-```
-
-### 4. Только дерево файлов + пакеты, без systemd-хелперов
-
-Unit-файлы не записывает (настройте вручную):
-
-```bash
-curl -fsSL "https://raw.githubusercontent.com/falcga/firewall/main/contrib/remote-install.sh" \
-  | sudo -E env \
-      SUBSCRIPTION_URL='https://ВАША_ПОДПИСКА' \
-      FIREWALL_REPO_URL='https://github.com/falcga/firewall.git' \
-      SKIP_SYSTEMD=1 \
-      sh -
-```
-
-### 5. Просмотр команд без изменений
-
-```bash
-curl -fsSL "https://raw.githubusercontent.com/falcga/firewall/main/contrib/remote-install.sh" \
-  | sudo -E env \
-      SUBSCRIPTION_URL='https://ВАША_ПОДПИСКА' \
-      FIREWALL_REPO_URL='https://github.com/falcga/firewall.git' \
-      DRY_RUN=1 \
-      sh -
-```
-
-### 6. Другой каталог установки или clone
-
-```bash
-sudo -E env \
-  SUBSCRIPTION_URL='https://ВАША_ПОДПИСКА' \
-  FIREWALL_REPO_URL='https://github.com/falcga/firewall.git' \
-  FIREWALL_ROOT='/srv/firewall' \
-  FIREWALL_CLONE='/var/tmp/fw-clone' \
-  sh contrib/remote-install.sh
-```
-
-Последняя строка — если вы **уже** внутри клона репозитория.
-
----
-
-## Установка из локального clone
-
-```bash
-sudo apt-get install -y dialog git curl   # dialog — для scripts/setup-tui.sh
-sudo env SUBSCRIPTION_URL='https://…' ./install.sh -r /opt/firewall
-./install.sh -h
-```
-
-После установки:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now mihomo.service firewall-shell2http.service
-```
-
----
-
-## Интерактивная настройка (TUI)
-
-Одно меню для портов, nginx, доменного импорта, режима **split/tunnel**, запусков sync и systemd — см. [SETUP-RU.txt](SETUP-RU.txt):
-
-```bash
-sudo apt-get install -y dialog
-sudo bash scripts/setup-tui.sh
-```
-
-Настройки сохраняются в `~/.config/firewall-setup-tui/state.conf`.
-
----
-
-## Сетевые значения по умолчанию (панель)
-
-| Сервис        | По умолчанию (из примеров)       |
-|---------------|----------------------------------|
-| shell2http    | `127.0.0.1:8899`                 |
-| nginx (LAN)   | `192.168.50.2:8088` (пример)     |
-| Путь UI       | `http://LAN_IP:PORT/dashboard/`  |
-
-Подставьте IP своего Pi на LAN. Генерация конфигов — в TUI раздел **«Панель»** или вручную по [contrib/nginx-dashboard.conf.example](contrib/nginx-dashboard.conf.example).
-
----
-
-## Ручной сценарий (кратко)
-
-1. Пакеты: `curl`, `python3`, `nftables`, `iptables`, `nginx`, `apache2-utils`.
-2. Каталог с репозиторием → целевой `FIREWALL_ROOT` (rsync или `install.sh`).
-3. `secrets/subscription.url` с HTTPS подпиской.
-4. Скрипты: `sync-zapret-lists-upstream.sh`, `sync-geodat.sh`, `build-lists.sh`, `gen-mihomo-config.sh`.
-5. **Zapret** bol-van: см. [contrib/zapret-bolvan-note.txt](contrib/zapret-bolvan-note.txt) и `state/generated/*`.
-6. Режим **полного VPN**: `FIREWALL_VPN_ROUTE=tunnel` перед `gen-mihomo-config.sh`.
-7. Память **~1 ГБ**: не жать «полное обновление» слишком часто под нагрузкой.
-
-Полный текст — [SETUP-RU.txt](SETUP-RU.txt).
-
----
-
-## English (short)
-
-- **Stack:** domestic gateway with Flowseal-style text lists, bol-van/zapret DPI ideas, **Mihomo** + runetfreedom geodata, **nginx** + **shell2http** dashboard on loopback.
-- **Quick remote install:** set `SUBSCRIPTION_URL` and `FIREWALL_REPO_URL`, then pipe [contrib/remote-install.sh](contrib/remote-install.sh) (see one-liners above).
-- **Flags:** `SKIP_BINARIES`, `SKIP_SYNC`, `SKIP_SYSTEMD`, `DRY_RUN` — same as `install.sh`.
-- **Details:** [SETUP-RU.txt](SETUP-RU.txt) (Russian walkthrough).
-
----
+- Linux с `systemd` (Debian / Raspberry Pi OS / Ubuntu)
+- `curl`, `git`, `dialog`, `nftables`
+- ~100 МБ свободного места после установки
+- ~1 ГБ RAM для полного обновления
 
 ## Безопасность
 
-- Не публикуйте **SUBSCRIPTION_URL** и логи с ним.
-- После тестов с примерами в чатах **обновите** подписку на стороне провайдера.
+- Не публикуйте `SUBSCRIPTION_URL` и логи с ним
+- После тестов обновите подписку на стороне провайдера
+- `subscription.url` хранится в `secrets/` с правами 600
+
+## Ручная установка zapret
+
+Если автоустановка не сработала:
+
+```bash
+cd /tmp
+git clone --depth=1 https://github.com/bol-van/zapret.git
+cd zapret
+# Для Raspberry Pi (aarch64):
+# Бинарники уже есть в binaries/linux-arm64/
+./install_bin.sh          # установит бинарники
+./install_easy.sh         # интерактивная настройка
+```
+
+## Логи и отладка
+
+```bash
+# Логи установки
+cat /tmp/firewall-install.log
+cat /tmp/zapret-install.log
+
+# Логи сервисов
+sudo journalctl -u mihomo.service -n 50
+sudo journalctl -u zapret.service -n 50
+sudo journalctl -u firewall-shell2http.service -n 50
+
+# Проверка процессов
+pgrep -a nfqws
+pgrep -a tpws
+pgrep -a mihomo
+```
+
+## Лицензия
+
+MIT / GPL — зависит от компонентов. См. лицензии bol-van/zapret, MetaCubeX/mihomo, msoap/shell2http.

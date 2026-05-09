@@ -1,5 +1,6 @@
-state/
-secrets/
-*.dat
-*.bak
-/catalog/upstream/*
+*.log
+*.tmp
+state/geodata/*
+state/generated/*
+secrets/*
+!secrets/.gitkeep

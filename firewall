@@ -1,0 +1,266 @@
+#!/bin/bash
+# firewall — CLI управление домашним шлюзом
+# Команды: start, stop, restart, status, settings, update, logs, install, help
+
+set -e
+
+FIREWALL_ROOT="${FIREWALL_ROOT:-/opt/firewall}"
+SCRIPT_DIR="${FIREWALL_ROOT}/scripts"
+
+show_help() {
+    cat <<'EOF'
+Использование: firewall <команда>
+
+Команды:
+  start       Запустить все сервисы (mihomo + shell2http + zapret)
+  stop        Остановить все сервисы
+  restart     Перезапустить все сервисы
+  status      Показать статус всех сервисов
+  settings    Открыть интерактивную настройку (TUI)
+  update      Обновить списки, geodata и подписку
+  logs        Показать последние логи
+  install     Установить/переустановить zapret и зависимости
+  help        Показать эту справку
+
+Примеры:
+  sudo firewall start
+  sudo firewall restart
+  sudo firewall status
+  sudo firewall settings
+EOF
+}
+
+cmd_start() {
+    echo "[*] Запуск сервисов..."
+    systemctl start mihomo.service 2>/dev/null || { echo "  [!] mihomo.service не найден"; }
+    systemctl start firewall-shell2http.service 2>/dev/null || { echo "  [!] firewall-shell2http.service не найден"; }
+    systemctl start zapret.service 2>/dev/null || {
+        echo "  [!] zapret.service не найден, пробуем через init.d..."
+        [ -f /opt/zapret/init.d/systemd/zapret ] && /opt/zapret/init.d/systemd/zapret start || echo "  [!] zapret не установлен"
+    }
+    echo "[*] Готово"
+    cmd_status
+}
+
+cmd_stop() {
+    echo "[*] Остановка сервисов..."
+    systemctl stop mihomo.service 2>/dev/null || true
+    systemctl stop firewall-shell2http.service 2>/dev/null || true
+    systemctl stop zapret.service 2>/dev/null || {
+        [ -f /opt/zapret/init.d/systemd/zapret ] && /opt/zapret/init.d/systemd/zapret stop || true
+    }
+    echo "[*] Готово"
+}
+
+cmd_restart() {
+    echo "[*] Перезапуск сервисов..."
+    systemctl restart mihomo.service 2>/dev/null || { echo "  [!] mihomo не перезапущен"; }
+    systemctl restart firewall-shell2http.service 2>/dev/null || { echo "  [!] shell2http не перезапущен"; }
+    systemctl restart zapret.service 2>/dev/null || {
+        [ -f /opt/zapret/init.d/systemd/zapret ] && /opt/zapret/init.d/systemd/zapret restart || echo "  [!] zapret не перезапущен"
+    }
+    echo "[*] Готово"
+    cmd_status
+}
+
+cmd_status() {
+    echo ""
+    echo "=== Статус Firewall ==="
+    echo ""
+
+    printf "%-20s " "[Mihomo]"
+    if systemctl is-active mihomo.service >/dev/null 2>&1; then
+        echo "✓ активен"
+    else
+        echo "✗ неактивен"
+    fi
+
+    printf "%-20s " "[shell2http]"
+    if systemctl is-active firewall-shell2http.service >/dev/null 2>&1; then
+        echo "✓ активен"
+    else
+        echo "✗ неактивен"
+    fi
+
+    printf "%-20s " "[Zapret]"
+    if systemctl is-active zapret.service >/dev/null 2>&1; then
+        echo "✓ активен"
+    elif pgrep -x nfqws >/dev/null 2>&1 || pgrep -x tpws >/dev/null 2>&1; then
+        echo "✓ процесс запущен"
+    else
+        echo "✗ неактивен"
+    fi
+
+    echo ""
+    echo "[Диск]"
+    df -h / /opt 2>/dev/null | awk 'NR>1 {printf "  %-10s %s свободно из %s\n", $6, $4, $2}'
+
+    echo ""
+    echo "[Списки]"
+    local lists_found=0
+    for f in "${FIREWALL_ROOT}/state/generated/"*.txt; do
+        if [ -f "$f" ]; then
+            printf "  %-35s %s строк\n" "$(basename "$f")" "$(wc -l < "$f")"
+            lists_found=1
+        fi
+    done
+    [ "$lists_found" = "0" ] && echo "  (списки не найдены, запустите: sudo firewall update)"
+
+    echo ""
+}
+
+cmd_settings() {
+    if [ -f "${SCRIPT_DIR}/setup-tui.sh" ]; then
+        sudo bash "${SCRIPT_DIR}/setup-tui.sh"
+    else
+        echo "[!] TUI не найден: ${SCRIPT_DIR}/setup-tui.sh"
+        echo "    Установите: sudo cp setup-tui.sh ${SCRIPT_DIR}/"
+        exit 1
+    fi
+}
+
+cmd_update() {
+    echo "[*] Обновление компонентов..."
+
+    if [ -f "${SCRIPT_DIR}/sync-zapret-lists-upstream.sh" ]; then
+        echo "  → Списки zapret..."
+        bash "${SCRIPT_DIR}/sync-zapret-lists-upstream.sh" 2>/dev/null || echo "  [!] Ошибка sync-zapret-lists"
+    fi
+
+    if [ -f "${SCRIPT_DIR}/build-lists.sh" ]; then
+        echo "  → Сборка списков..."
+        bash "${SCRIPT_DIR}/build-lists.sh" 2>/dev/null || echo "  [!] Ошибка build-lists"
+    fi
+
+    if [ -f "${SCRIPT_DIR}/sync-geodat.sh" ]; then
+        echo "  → Geodata..."
+        bash "${SCRIPT_DIR}/sync-geodat.sh" 2>/dev/null || echo "  [!] Ошибка sync-geodat"
+    fi
+
+    if [ -f "${SCRIPT_DIR}/update-subscription.sh" ]; then
+        echo "  → Подписка..."
+        bash "${SCRIPT_DIR}/update-subscription.sh" 2>/dev/null || echo "  [!] Ошибка update-subscription"
+    fi
+
+    if [ -f "${SCRIPT_DIR}/gen-mihomo-config.sh" ]; then
+        echo "  → Конфиг Mihomo..."
+        bash "${SCRIPT_DIR}/gen-mihomo-config.sh" 2>/dev/null || echo "  [!] Ошибка gen-mihomo-config"
+    fi
+
+    echo "[*] Обновление завершено"
+    echo ""
+    cmd_status
+}
+
+cmd_logs() {
+    echo "=== Последние логи ==="
+    echo ""
+
+    for svc in mihomo firewall-shell2http zapret; do
+        echo "--- ${svc} ---"
+        journalctl -u "${svc}.service" -n 20 --no-pager 2>/dev/null || echo "  (логи недоступны)"
+        echo ""
+    done
+
+    if [ -f /tmp/zapret-install.log ]; then
+        echo "--- zapret install ---"
+        tail -n 20 /tmp/zapret-install.log
+        echo ""
+    fi
+}
+
+cmd_install() {
+    echo "[*] Установка/переустановка компонентов..."
+
+    # Zapret
+    if [ ! -d /opt/zapret ]; then
+        echo "  → Установка zapret..."
+        if [ -f "${SCRIPT_DIR}/setup-tui.sh" ]; then
+            bash "${SCRIPT_DIR}/setup-tui.sh" 2>/dev/null || {
+                echo "    Запустите TUI: sudo firewall settings → Установить Zapret"
+            }
+        else
+            echo "    [!] TUI не найден. Установите zapret вручную:"
+            echo "        cd /tmp && git clone --depth=1 https://github.com/bol-van/zapret.git"
+            echo "        cd zapret && ./install_easy.sh"
+        fi
+    else
+        echo "  → Zapret уже установлен: /opt/zapret"
+    fi
+
+    # shell2http
+    if ! command -v shell2http >/dev/null 2>&1; then
+        echo "  → Установка shell2http..."
+        local arch="$(uname -m)"
+        local suffix="amd64"
+        case "$arch" in
+            aarch64|arm64) suffix="arm64" ;;
+            armv7l) suffix="arm" ;;
+        esac
+        curl -fsSL "https://github.com/msoap/shell2http/releases/latest/download/shell2http-linux-${suffix}.tar.gz" | \
+            tar -xzf - -C /usr/local/bin/ shell2http 2>/dev/null || echo "  [!] Ошибка установки shell2http"
+        chmod +x /usr/local/bin/shell2http 2>/dev/null || true
+    else
+        echo "  → shell2http уже установлен"
+    fi
+
+    # Mihomo
+    if ! command -v mihomo >/dev/null 2>&1; then
+        echo "  → Установка Mihomo..."
+        local arch="$(uname -m)"
+        local suffix="amd64"
+        case "$arch" in
+            aarch64|arm64) suffix="arm64" ;;
+            armv7l) suffix="armv7" ;;
+        esac
+        curl -fsSL "https://github.com/MetaCubeX/mihomo/releases/latest/download/mihomo-linux-${suffix}-compatible.gz" | \
+            gzip -d > /usr/local/bin/mihomo 2>/dev/null || echo "  [!] Ошибка установки mihomo"
+        chmod +x /usr/local/bin/mihomo 2>/dev/null || true
+    else
+        echo "  → Mihomo уже установлен"
+    fi
+
+    # Перезагрузка systemd
+    systemctl daemon-reload 2>/dev/null || true
+
+    echo "[*] Готово"
+}
+
+# === MAIN ===
+COMMAND="${1:-status}"
+
+case "$COMMAND" in
+    start)
+        cmd_start
+        ;;
+    stop)
+        cmd_stop
+        ;;
+    restart)
+        cmd_restart
+        ;;
+    status|st)
+        cmd_status
+        ;;
+    settings|config|cfg)
+        cmd_settings
+        ;;
+    update|up|sync)
+        cmd_update
+        ;;
+    logs|log)
+        cmd_logs
+        ;;
+    install|setup)
+        cmd_install
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        echo "Неизвестная команда: $COMMAND"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac

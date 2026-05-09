@@ -1,3 +1,0 @@
-# Скопируйте в import-domens.txt и запустите scripts/import-domens-to-catalog.sh
-# Формат как в вашем domens.txt: строки доменов, блоки через ;комментарий,
-# а также строки "IP домен" (IP уйдут в ip-zapret, имена доменов — в domains-zapret по умолчанию).
