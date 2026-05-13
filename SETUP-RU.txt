@@ -1,15 +1,9 @@
 Сборка домашнего шлюза (ПК по Ethernet ↔ Pi Wi‑Fi): Flowseal-листы только как текст для merge, DPI — bol-van/zapret на Linux,
 VPN/UI — Mihomo (+ geodata/runetfreedom), панель — nginx + shell2http на loopback.
 
-Быстрый старт в один шаг и варианты SKIP_*: см. README.md (contrib/remote-install.sh + примеры curl).
-
 0) Автоустановка (стиль Orb: detect дистрибутива через /etc/os-release)
-   Интерактивная панель (dialog): apt install dialog && sudo bash scripts/setup-tui.sh
-      → те же пункты ниже через меню [1]–[8], порты/nginx/shell2http и сохранение в ~/.config/firewall-setup-tui/state.conf
-   Из корня клона: sudo ./install.sh
-      → спросит SUBSCRIPTION_URL если не выставили в окружении;
-      опционально каталог установки: sudo ./install.sh -r /srv/firewall или FIREWALL_ROOT=/srv/firewall
-   Переменные: SKIP_BINARIES=1, SKIP_SYNC=1, SKIP_SYSTEMD=1, DRY_RUN=1; справка: ./install.sh -h.
+   Из корня клона: sudo SUBSCRIPTION_URL='https://…' ./install.sh
+   Переменные: SKIP_BINARIES=1 (без mihomo/shell2http), SKIP_SYNC=1 (~90 МБ без geodata/list), SKIP_SYSTEMD=1, DRY_RUN=1.
 
 1) Пакеты
    sudo apt update

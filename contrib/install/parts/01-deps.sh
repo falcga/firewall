@@ -30,9 +30,7 @@ detect_pkg(){
 	sle-micro*) PACKAGETYPE=zypper ;;
 	openwrt|turrisos|istoreos) PACKAGETYPE=opkg ;;
 	esac
-	if [ -f /opt/etc/entware_release ]; then
-		PACKAGETYPE=opkg
-	fi
+	test -f /opt/etc/entware_release && PACKAGETYPE=opkg
 }
 
 ensure_packages() {
