@@ -115,6 +115,41 @@ sudo systemctl enable --now mihomo.service firewall-shell2http.service
 
 ---
 
+## Быстрое обновление из репозитория
+
+Один скрипт для обновления всего firewall из git, синхронизации списков и перезапуска сервисов:
+
+```bash
+sudo bash scripts/update-firewall.sh
+```
+
+Что делает:
+1. Проверяет наличие обновлений в git (git fetch + git pull)
+2. Синхронизирует файлы в `FIREWALL_ROOT` (если отличается от текущего каталога)
+3. Загружает свежие списки Flowseal и геодату
+4. Собирает hostlist/IP-списки
+5. Устанавливает команду `firewall` в `/usr/local/bin/`
+6. Перезапускает сервисы (mihomo, shell2http, zapret, nginx)
+
+Флаги: `--no-pull`, `--no-restart`, `--no-sync`, `--no-build`, `--root DIR`.
+
+---
+
+## Команда `firewall`
+
+После установки или обновления через `update-firewall.sh` становится доступна команда `firewall`:
+
+```bash
+firewall              # Запуск интерактивного TUI (через sudo, если нужно)
+firewall --update     # Обновление из репозитория
+firewall --status     # Статус сервисов
+firewall --version    # Последний коммит git
+```
+
+Устанавливается автоматически в `/usr/local/bin/firewall` при выполнении `update-firewall.sh`.
+
+---
+
 ## Интерактивная настройка (TUI)
 
 Одно меню для портов, nginx, доменного импорта, режима **split/tunnel**, запусков sync и systemd — см. [SETUP-RU.txt](SETUP-RU.txt):
@@ -125,6 +160,22 @@ sudo bash scripts/setup-tui.sh
 ```
 
 Настройки сохраняются в `~/.config/firewall-setup-tui/state.conf`.
+
+### Разделы TUI
+
+| Пункт | Раздел | Описание |
+|-------|--------|----------|
+| 1 | Общее | Корень установки, подписка, флаги install.sh |
+| 2 | Установка | Запуск install.sh |
+| 3 | Списки | Sync Flowseal/геодата, import domens, build |
+| 4 | Mihomo | gen-config, split/tunnel, restart/status |
+| 5 | Zapret | Заметки bol-van, restart, просмотр generated |
+| 6 | Панель | nginx + shell2http (IP, порт, htpasswd) |
+| 7 | Система | systemctl status/restart сервисов |
+| 8 | SETUP-RU | Просмотр инструкции |
+| **9** | **Стратегии DPI** | **Выбор стратегий запрета (QUIC, TCP-seg, MD5 и др.)** |
+| **A** | **Проверка обхода** | **Детектирование работы обхода блокировок** |
+| **B** | **VPN** | **WireGuard/OpenVPN up/down/status** |
 
 ---
 
