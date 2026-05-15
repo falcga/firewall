@@ -42,10 +42,50 @@ if ! command -v dialog >/dev/null 2>&1; then
     exit 1
 fi
 
+# Создаём конфиг dialog с чёрным фоном (screen_background = black)
+# Переменная DIALOGRC отключает системный конфиг, вместо этого задаём стили через temp-файл
+DIALOGRC_CUSTOM="${STATE_DIR}/dialogrc"
+if [ ! -f "$DIALOGRC_CUSTOM" ]; then
+    cat > "$DIALOGRC_CUSTOM" << 'DIALOGRC_EOF'
+# Чёрный фон для dialog
+use_shadow = OFF
+screen_color = (BLACK,BLACK,OFF)
+title_color = (WHITE,BLACK,OFF)
+dialog_color = (WHITE,BLACK,OFF)
+inputbox_color = (WHITE,BLACK,OFF)
+button_color = (WHITE,BLACK,OFF)
+button_key_active_color = (WHITE,BLACK,OFF)
+button_label_active_color = (YELLOW,BLACK,OFF)
+button_key_inactive_color = (WHITE,BLACK,OFF)
+button_label_inactive_color = (WHITE,BLACK,OFF)
+border_color = (WHITE,BLACK,OFF)
+item_color = (WHITE,BLACK,OFF)
+item_selected_color = (BLACK,WHITE,OFF)
+tag_color = (WHITE,BLACK,OFF)
+tag_selected_color = (BLACK,WHITE,OFF)
+tag_key_color = (WHITE,BLACK,OFF)
+tag_key_selected_color = (BLACK,WHITE,OFF)
+check_color = (WHITE,BLACK,OFF)
+check_selected_color = (BLACK,WHITE,OFF)
+menubox_color = (WHITE,BLACK,OFF)
+menubox_border_color = (WHITE,BLACK,OFF)
+position_indicator_color = (WHITE,BLACK,OFF)
+searchbox_color = (WHITE,BLACK,OFF)
+searchbox_title_color = (WHITE,BLACK,OFF)
+searchbox_border_color = (WHITE,BLACK,OFF)
+textbox_color = (WHITE,BLACK,OFF)
+textbox_border_color = (WHITE,BLACK,OFF)
+gauge_color = (WHITE,BLACK,OFF)
+gauge_border_color = (WHITE,BLACK,OFF)
+DIALOGRC_EOF
+fi
+export DIALOGRC="$DIALOGRC_CUSTOM"
+
 # Главное меню
 main_menu() {
     while true; do
-        choice=$(dialog --clear --backtitle "Firewall Setup" \
+        choice=$(dialog --clear \
+            --backtitle "Firewall Setup" \
             --title "Главное меню" \
             --menu "Выберите раздел настройки:" 20 70 12 \
             1 "🌐 VPN режим (split/tunnel)" \

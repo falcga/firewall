@@ -21,10 +21,60 @@ flowseal_lists=(
   ipset-all.txt
 )
 
+# Проверка DNS — если не резолвится, ставим 8.8.8.8
+ensure_dns() {
+  if ! host raw.githubusercontent.com >/dev/null 2>&1 && \
+     ! nslookup raw.githubusercontent.com >/dev/null 2>&1 && \
+     ! curl -fsSL -o /dev/null --connect-timeout 3 "https://raw.githubusercontent.com" 2>/dev/null; then
+    echo "⚠️ DNS не работает. Устанавливаю nameserver 8.8.8.8..."
+    echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf >/dev/null 2>&1 || \
+    echo "nameserver 8.8.8.8" | tee /etc/resolv.conf >/dev/null 2>&1 || true
+    sleep 1
+  fi
+}
+
 fetch_remote() {
   local path="$1" url="$2"
   mkdir -p "$(dirname "$path")"
   curl -fsSL "$url" -o "$path.tmp" && mv -f "$path.tmp" "$path"
+}
+
+# Прогресс-бар для длинных операций
+progress_bar() {
+  local current="$1" total="$2" label="${3:-}"
+  local percent=0
+  local bar_len=30
+  if [ "$total" -gt 0 ]; then
+    percent=$(( current * 100 / total ))
+  fi
+  local filled=$(( current * bar_len / total ))
+  local empty=$(( bar_len - filled ))
+  local bar=""
+  for ((i=0; i<filled; i++)); do bar="${bar}█"; done
+  for ((i=0; i<empty; i++)); do bar="${bar}░"; done
+  printf "\r\033[K%s [%s] %3d%%" "${label:+$label }" "$bar" "$percent"
+}
+
+# Обёртка для последовательного скачивания с прогрессом
+fetch_remote_with_progress() {
+  local path="$1" url="$2" label="${3:-}"
+  if [ -n "$label" ]; then
+    echo -n "  $label ... "
+  fi
+  mkdir -p "$(dirname "$path")"
+  if curl -fsSL --connect-timeout 10 --max-time 60 "$url" -o "$path.tmp"; then
+    mv -f "$path.tmp" "$path"
+    if [ -n "$label" ]; then
+      echo "✓"
+    fi
+    return 0
+  else
+    rm -f "$path.tmp"
+    if [ -n "$label" ]; then
+      echo "✗ failed"
+    fi
+    return 1
+  fi
 }
 
 ensure_dirs() {

@@ -280,6 +280,7 @@ case "${1:-}" in
   Без аргументов — запуск TUI (интерактивная настройка)
   --help, -h     Эта справка
   --update       Обновление firewall из репозитория (sudo)
+  --refresh      Полный refresh списков + сборка + рестарт (sudo)
   --status       Статус сервисов
   --version      Версия (последний коммит git)
 
@@ -287,6 +288,9 @@ HELP
     ;;
   --update)
     exec sudo bash "$ROOT/scripts/update-firewall.sh" "${@:2}"
+    ;;
+  --refresh)
+    exec sudo bash "$ROOT/scripts/update-firewall.sh" --refresh --no-restart "${@:2}"
     ;;
   --status)
     systemctl status mihomo.service --no-pager 2>/dev/null || echo "mihomo: не найден"
@@ -325,6 +329,7 @@ main() {
   local do_sync=true
   local do_build=true
   local interactive=true
+  local mode="update"  # "update" = git pull+sync, "refresh" = full-refresh
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -334,6 +339,7 @@ main() {
       --no-sync) do_sync=false ;;
       --no-build) do_build=false ;;
       --no-interactive) interactive=false ;;
+      --refresh|--full-refresh) mode="refresh" ;;
       --help) usage; exit 0 ;;
       *) root="$1" ;;
     esac
@@ -343,6 +349,22 @@ main() {
   # Если root указан, используем его, иначе FIREWALL_ROOT
   if [[ "$root" == "$ROOT" ]]; then
     root="$FIREWALL_ROOT"
+  fi
+
+  # Режим refresh = только full-refresh (без git pull)
+  if [[ "$mode" == "refresh" ]]; then
+    echo ""
+    echo "${CYAN}======================================${NC}"
+    echo "${CYAN}  Firewall Full Refresh${NC}"
+    echo "${CYAN}======================================${NC}"
+    echo ""
+    run_sync "$root"
+    run_build "$root"
+    if $do_restart; then
+      restart_services "$root"
+    fi
+    header "Full refresh завершён!"
+    return 0
   fi
 
   echo ""

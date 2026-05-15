@@ -10,6 +10,7 @@ zipset="$STATE/generated/zapret-ip.txt"
 zipset_ex="$STATE/generated/zapret-ip-exclude.txt"
 sanitize_domains() {
   grep -Ev '^[[:space:]]*(#|$|;)' "$@" \
+    | tr -d '\r' \
     | awk '{ print tolower($1) }' \
     | sed 's/^\.//' \
     | sort -u
@@ -17,12 +18,14 @@ sanitize_domains() {
 
 sanitize_subnets() {
   grep -Ev '^[[:space:]]*(#|$|;)' "$@" \
+    | tr -d '\r' \
     | awk '{ print $1 }' \
     | sort -u
 }
 
 filter_ips_stream() {
-  grep -Ev '^[[:space:]]*(#|$|;)' \
+  tr -d '\r' \
+    | grep -Ev '^[[:space:]]*(#|$|;)' \
     | awk 'NF>=1 && $1 ~ /^[0-9]+\./ { print $1 }' \
     | sort -u
 }
@@ -47,6 +50,7 @@ fi
 {
   cat "$CATALOG/upstream/ipset-all.txt" 2>/dev/null || true
   cat "$CATALOG/upstream/ipset-all.backup.txt" 2>/dev/null || true
+  cat "$CATALOG/upstream/ipset-all.txt.backup" 2>/dev/null || true
   [ -f "$CATALOG/user/ip-zapret.txt" ] && cat "$CATALOG/user/ip-zapret.txt"
 } | filter_ips_stream >"$zipset.tmp" && mv -f "$zipset.tmp" "$zipset" \
   || { : >"$zipset"; rm -f "$zipset.tmp" 2>/dev/null || true; }
