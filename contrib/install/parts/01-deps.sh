@@ -8,8 +8,8 @@ mkdir -p "$INSTALL_LOG_DIR" 2>/dev/null || true
 # current timestamp for log lines
 _now(){ date '+%Y-%m-%dT%H:%M:%S' 2>/dev/null || echo "???"; }
 
-# write to stderr only — install.sh exec redirect captures stderr into logfile
-_llog(){ local ts; ts="$(_now)"; printf '[%s] %s\n' "$ts" "$*" >&2; }
+# write to both stderr and logfile
+_llog(){ local ts; ts="$(_now)"; printf '[%s] %s\n' "$ts" "$*" | tee -a "$INSTALL_LOG" >&2; }
 
 die(){ _llog "FATAL: $*"; echo >&2 "FULL LOG: $INSTALL_LOG"; exit 1; }
 log(){ _llog "INFO: $*"; }
