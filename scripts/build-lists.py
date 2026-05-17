@@ -1,10 +1,23 @@
 #!/usr/bin/env python3
-"""Generate all lists for zapret from upstream catalog."""
-import os, sys, glob
+"""Generate all lists for zapret from upstream catalog.
+   Can be run from anywhere. Uses FIREWALL_ROOT env or auto-detects."""
+import os, sys
 
-BASE = "/opt/firewall"
+# Allow override via environment
+FIREWALL_ROOT = os.environ.get("FIREWALL_ROOT", "")
+if not FIREWALL_ROOT:
+    # Auto-detect: look for catalog/upstream relative to script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    parent = os.path.dirname(script_dir)
+    if os.path.isdir(os.path.join(parent, "catalog")):
+        FIREWALL_ROOT = parent
+    else:
+        FIREWALL_ROOT = "/opt/firewall"
+
+BASE = FIREWALL_ROOT
 UPSTREAM = os.path.join(BASE, "catalog", "upstream")
 GENERATED = os.path.join(BASE, "state", "generated")
+
 os.makedirs(GENERATED, exist_ok=True)
 
 def read_stripped(path):
