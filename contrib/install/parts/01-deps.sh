@@ -1,11 +1,30 @@
 # utils + distro packages
-die(){ echo >&2 "$*"; exit 1; }
-log(){ echo >&2 "--- $*"; }
+
+# --- logging ---
+INSTALL_LOG="${INSTALL_LOG:-/var/log/firewall-install.log}"
+INSTALL_LOG_DIR="$(dirname "$INSTALL_LOG")"
+mkdir -p "$INSTALL_LOG_DIR" 2>/dev/null || true
+
+# current timestamp for log lines
+_now(){ date '+%Y-%m-%dT%H:%M:%S' 2>/dev/null || echo "???"; }
+
+# write to both stderr and logfile
+_llog(){ local ts; ts="$(_now)"; printf '[%s] %s\n' "$ts" "$*" | tee -a "$INSTALL_LOG" >&2; }
+
+die(){ _llog "FATAL: $*"; echo >&2 "FULL LOG: $INSTALL_LOG"; exit 1; }
+log(){ _llog "INFO: $*"; }
+
+# trap any command failure — log and show context
+_on_err(){ local rc=$? line=$1; _llog "ERROR: command failed at line $line (exit=$rc)"; }
+trap '_on_err $LINENO' ERR || true
+
 if command -v curl >/dev/null 2>&1; then Download(){ curl -fsSL "$1" -o "$2"; }
 elif command -v wget >/dev/null 2>&1; then Download(){ wget -q "$1" -O "$2"; }
 else die "Need curl or wget"; fi
+
 _exe(){
 	if [ "${DRY_RUN:-0}" = "1" ]; then echo "+ $*"; return 0; fi
+	if _llog "CMD: $*"; then :; fi
 	if [ "$(id -u)" = "0" ]; then "$@"; else sudo "$@"; fi
 }
 PACKAGETYPE=""
