@@ -5,7 +5,11 @@
 #      DRY_RUN=1 SKIP_BINARIES=1 SKIP_SYNC=1 SKIP_SYSTEMD=1 SKIP_NGINX_HELPER=1
 #      INSTALL_LOG=/var/log/firewall-install.log (default)
 #
-set -eo pipefail
+
+# For debugging - disable set -e and enable set -x
+# set -eo pipefail
+set -x
+
 CDPATH=: FW_ROOT=""
 FW_ROOT="$(cd "$(dirname "$0")" && pwd)" || {
 	echo >&2 dirname

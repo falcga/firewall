@@ -14,9 +14,9 @@ _llog(){ local ts; ts="$(_now)"; printf '[%s] %s\n' "$ts" "$*" | tee -a "$INSTAL
 die(){ _llog "FATAL: $*"; echo >&2 "FULL LOG: $INSTALL_LOG"; exit 1; }
 log(){ _llog "INFO: $*"; }
 
-# trap any command failure — log and show context
-_on_err(){ local rc=$? line=$1; _llog "ERROR: command failed at line $line (exit=$rc)"; }
-trap '_on_err $LINENO' ERR || true
+# trap any command failure — (DISABLED FOR DEBUGGING) log and show context
+# _on_err(){ local rc=$? line=$1; _llog "ERROR: command failed at line $line (exit=$rc)"; }
+# trap '_on_err $LINENO' ERR || true
 
 if command -v curl >/dev/null 2>&1; then Download(){ curl -fsSL "$1" -o "$2"; }
 elif command -v wget >/dev/null 2>&1; then Download(){ wget -q "$1" -O "$2"; }
@@ -71,29 +71,4 @@ ensure_packages() {
 	*) die "unsupported packager=[$PACKAGETYPE]" ;;
 	esac
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
