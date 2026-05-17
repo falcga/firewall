@@ -15,6 +15,7 @@ main_install() {
 	write_secret
 	test "${SKIP_SYSTEMD:-0}" = "1" || install_systemd_snippets
 	test "${SKIP_SYNC:-0}" = "1" || first_sync_bundle
+	install_firewall_cli
 	echo "DONE: FIREWALL_ROOT=$FIREWALL_ROOT docs=SETUP-RU.txt dashboard=contrib/nginx-dashboard.conf.example"
 }
 

@@ -236,19 +236,27 @@ install_firewall_command() {
   local root="$1"
   header "Установка команды firewall"
 
-  local script_src="$root/scripts/setup-tui.sh"
+  local real_cli="$root/firewall"
   local symlink_target="/usr/local/bin/firewall"
 
-  if [[ ! -f "$script_src" ]]; then
-    warn "$script_src не найден — пропускаю"
+  # If the real firewall CLI exists (install.sh placed it), symlink it
+  if [[ -x "$real_cli" ]]; then
+    ln -sf "$real_cli" "$symlink_target" 2>/dev/null || \
+      sudo install -m 0755 "$real_cli" "$symlink_target"
+    info "Команда 'firewall' установлена в $symlink_target"
+    info "Проверка: firewall help"
+    return 0
+  fi
+
+  # Fallback: create a wrapper that delegates to the real CLI or TUI
+  if [[ ! -f "$root/scripts/setup-tui.sh" ]]; then
+    warn "$root/scripts/setup-tui.sh не найден — пропускаю"
     return
   fi
 
-  # Создаём обёртку
   cat > /tmp/firewall-wrapper.sh << 'WRAPPER'
 #!/usr/bin/env bash
-# Обёртка для firewall TUI (установлена update-firewall.sh)
-# Запуск: firewall [--help]
+# Обёртка firewall (установлена update-firewall.sh)
 set -uo pipefail
 
 # Определяем корень
@@ -257,7 +265,6 @@ if [[ -n "${FIREWALL_ROOT:-}" ]]; then
 elif [[ -f "/opt/firewall/scripts/setup-tui.sh" ]]; then
   ROOT="/opt/firewall"
 else
-  # Пытаемся найти
   for d in /opt/firewall /home/*/lms/firewall /root/firewall; do
     if [[ -f "$d/scripts/setup-tui.sh" ]]; then
       ROOT="$d"
@@ -272,6 +279,12 @@ if [[ -z "${ROOT:-}" ]]; then
   exit 1
 fi
 
+# Delegate to the real CLI if available
+if [[ -x "$ROOT/firewall" ]]; then
+  exec sudo "$ROOT/firewall" "$@"
+fi
+
+# Fallback to wrapper subcommands
 case "${1:-}" in
   --help|-h)
     cat <<HELP

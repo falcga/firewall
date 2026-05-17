@@ -61,6 +61,14 @@ UNIT
 }
 
 
+install_firewall_cli() {
+	fr="${FIREWALL_ROOT%/}"
+	if _exe test -x "${fr}/firewall"; then
+		_exe ln -sf "${fr}/firewall" /usr/local/bin/firewall 2>/dev/null || \
+		_exe install -m 0755 "${fr}/firewall" /usr/local/bin/firewall
+	fi
+}
+
 first_sync_bundle() {
 
 

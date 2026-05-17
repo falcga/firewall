@@ -16,7 +16,7 @@ copy_into_root() {
 chmod_local() {
 	fr="${FIREWALL_ROOT%/}"
 
-	_exe chmod +x "${fr%/}/contrib/pick_github_asset.py" "${fr%/}/contrib/shell2http-launcher.sh" "${fr%/}/install.sh" 2>/dev/null || true
+	_exe chmod +x "${fr%/}/contrib/pick_github_asset.py" "${fr%/}/contrib/shell2http-launcher.sh" "${fr%/}/install.sh" "${fr%/}/firewall" 2>/dev/null || true
 	_exe find "${fr%/}/scripts" "${fr%/}/contrib" "${fr%/}/contrib/install/parts" -maxdepth 1 -type f -name '*.sh' -exec chmod +x '{}' '+'
 
 
