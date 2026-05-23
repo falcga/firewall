@@ -21,9 +21,7 @@ SCRIPT_DIR="$FW_ROOT"
 export SCRIPT_DIR
 
 # --- log everything ---
-INSTALL_LOG="${INSTALL_LOG:-/var/log/firewall-install.log}"
-INSTALL_LOG_DIR="$(dirname "$INSTALL_LOG")"
-mkdir -p "$INSTALL_LOG_DIR" 2>/dev/null || true
+INSTALL_LOG="${INSTALL_LOG:-${FW_ROOT}/firewall-install.log}"
 
 echo "=== firewall install started $(date -Iseconds 2>/dev/null || date) ===" >&2
 echo "FIREWALL_ROOT=$FIREWALL_ROOT" >&2

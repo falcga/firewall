@@ -9,8 +9,10 @@ User=root
 Environment=FIREWALL_ROOT=/opt/firewall
 Environment=SHELL2HTTP_LISTEN=127.0.0.1:8899
 Environment=SHELL2HTTP_BIN=/usr/local/bin/shell2http
-ExecStart=/usr/bin/bash /opt/firewall/contrib/shell2http-launcher.sh
+ExecStart=/usr/bin/bash /opt/firewall/contrib/shell2http-launcher.sh >> /opt/firewall/logs/shell2http.log 2>&1
 Restart=on-failure
+StandardOutput=append:/opt/firewall/logs/shell2http.log
+StandardError=append:/opt/firewall/logs/shell2http.log
 
 [Install]
 WantedBy=multi-user.target

@@ -52,8 +52,10 @@ WorkingDirectory=${FR}/state/mihomo
 
 
 
-ExecStart=/usr/local/bin/mihomo -d ${FR}/state/mihomo -f config.yaml
+ExecStart=/usr/local/bin/mihomo -d ${FR}/state/mihomo -f config.yaml >> ${FR}/logs/mihomo.log 2>&1
 Restart=on-failure
+StandardOutput=append:${FR}/logs/mihomo.log
+StandardError=append:${FR}/logs/mihomo.log
 [Install]
 WantedBy=multi-user.target
 UNIT

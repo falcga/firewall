@@ -25,6 +25,10 @@ main_install() {
 	install_firewall_cli
 	log "install_firewall_cli: done"
 
+	log "Creating logs directory..."
+	_exe mkdir -p "${FIREWALL_ROOT%/}/logs"
+	log "logs directory created."
+
 	echo ""
 	echo "=== INSTALL COMPLETE ==="
 	echo "FIREWALL_ROOT=$FIREWALL_ROOT"

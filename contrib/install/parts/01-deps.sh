@@ -2,8 +2,8 @@
 
 # --- logging ---
 INSTALL_LOG="${INSTALL_LOG:-/var/log/firewall-install.log}"
-INSTALL_LOG_DIR="$(dirname "$INSTALL_LOG")"
-mkdir -p "$INSTALL_LOG_DIR" 2>/dev/null || true
+# INSTALL_LOG_DIR="$(dirname "$INSTALL_LOG")"
+# mkdir -p "$INSTALL_LOG_DIR" 2>/dev/null || true
 
 # current timestamp for log lines
 _now(){ date '+%Y-%m-%dT%H:%M:%S' 2>/dev/null || echo "???"; }
