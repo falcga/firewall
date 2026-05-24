@@ -30,7 +30,10 @@ filter_ips_stream() {
     | sort -u
 }
 
-: >"$zhost" : >"$zexclude" : >"$zipset" : >"$zipset_ex"
+: >"$zhost"
+: >"$zexclude"
+: >"$zipset"
+: >"$zipset_ex"
 
 if [ ! -f "$CATALOG/upstream/list-general.txt" ]; then
   echo "Upstream lists missing — run scripts/sync-zapret-lists-upstream.sh first" >&2
@@ -47,13 +50,14 @@ fi
   [ -f "$CATALOG/user/domains-direct.txt" ] && sanitize_domains "$CATALOG/user/domains-direct.txt"
 } | sort -u >"$zexclude"
 
+tmpip="$(mktemp)"
 {
   cat "$CATALOG/upstream/ipset-all.txt" 2>/dev/null || true
   cat "$CATALOG/upstream/ipset-all.backup.txt" 2>/dev/null || true
   cat "$CATALOG/upstream/ipset-all.txt.backup" 2>/dev/null || true
   [ -f "$CATALOG/user/ip-zapret.txt" ] && cat "$CATALOG/user/ip-zapret.txt"
-} | filter_ips_stream >"$zipset.tmp" && mv -f "$zipset.tmp" "$zipset" \
-  || { : >"$zipset"; rm -f "$zipset.tmp" 2>/dev/null || true; }
+} | filter_ips_stream >"$tmpip" && mv -f "$tmpip" "$zipset" \
+  || { : >"$zipset"; rm -f "$tmpip" 2>/dev/null || true; }
 
 {
   sanitize_subnets "$CATALOG/upstream/ipset-exclude.txt"
@@ -74,8 +78,8 @@ rules_out="$STATE/generated/mihomo-user-rules.yaml"
 } >"$rules_out"
 
 echo "Wrote zapret:"
-echo "  hostlist → $zhost"
-echo "  exclude  → $zexclude"
-echo "  ips      → $zipset"
-echo "  ip-exc   → $zipset_ex"
-echo " mihomo   → $rules_out"
+echo "  hostlist → $zhost ($(wc -l < "$zhost") lines)"
+echo "  exclude  → $zexclude ($(wc -l < "$zexclude") lines)"
+echo "  ips      → $zipset ($(wc -l < "$zipset") lines)"
+echo "  ip-exc   → $zipset_ex ($(wc -l < "$zipset_ex") lines)"
+echo " mihomo   → $rules_out ($(wc -l < "$rules_out") lines)"
