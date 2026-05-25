@@ -1,8 +1,7 @@
 #!/bin/bash
 # setup-tui.sh — интерактивная настройка firewall (TUI)
 # Автоматически сгенерирован на основе стека falcga/firewall + zapret
-
-set -e
+# No set -e: dialog-based TUI returns non-zero on Cancel
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 STATE_DIR="${HOME}/.config/firewall-setup-tui"
