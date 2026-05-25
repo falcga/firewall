@@ -31,6 +31,44 @@ sudo firewall start
 | `SKIP_SYSTEMD=1` | Не создавать systemd-сервисы |
 | `DRY_RUN=1` | Показать команды без выполнения |
 
+**Зеркала для бинарников:**
+Если GitHub недоступен, укажите прямую ссылку на зеркало (SourceForge, GitLab Generic Packages, Яндекс.Диск и т.п.).
+
+**Шаблонные переменные в URL** (автоматически подставляются при установке):
+| Переменная | Описание |
+|------------|----------|
+| `{version}` | Последняя версия с GitHub (например `v1.19.25`) |
+| `{arch}`    | Архитектура системы (`arm64`, `amd64`, `armv7`, `armv6`) |
+| `{bin}`     | Имя бинарника (`mihomo` / `shell2http`) |
+| `{suffix}`  | Расширение файла (`.gz` / `.tar.gz`) |
+
+**Переменные окружения для зеркал:**
+| Переменная | Приоритет | Описание |
+|------------|-----------|----------|
+| `MIHOMO_MIRROR_URL_AARCH64` | 1 (высший) | Только для ARM64 |
+| `MIHOMO_MIRROR_URL_AMD64` | 1 | Только для x86_64 |
+| `MIHOMO_MIRROR_URL` | 2 | Для любой архитектуры (шаблоны работают) |
+| `SHELL2HTTP_MIRROR_URL` | 2 | Для shell2http (шаблоны работают) |
+
+Пример для **GitLab Generic Package Registry** (с шаблонами — версия подтянется автоматически):
+```bash
+sudo env \
+  SUBSCRIPTION_URL='https://ВАША_ПОДПИСКА' \
+  MIHOMO_MIRROR_URL='https://gitlab.com/falcga/mihomo-mirror/-/packages/generic/mihomo/{version}/mihomo-linux-{arch}-{version}.gz' \
+  ./install.sh -r /opt/firewall
+```
+
+Пример для **SourceForge** (без шаблонов, с фиксированной версией):  - пока не работает
+```bash
+sudo env \
+  SUBSCRIPTION_URL='https://ВАША_ПОДПИСКА' \
+  MIHOMO_MIRROR_URL='https://sourceforge.net/projects/зеркало/files/mihomo-linux-arm64-v1.19.25.gz/download' \
+  ./install.sh -r /opt/firewall
+```
+
+> **Лицензии:** MetaCubeX/mihomo — **GPL-3.0**, msoap/shell2http — **MIT**. Обе разрешают копирование, зеркалирование и распространение.
+> **Лог установки** пишется в `$FIREWALL_ROOT/firewall-install.log` — сохраняется после удаления `/tmp/fw`.
+
 ## CLI управление
 
 После установки используйте команду `firewall`:
