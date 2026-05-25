@@ -1,8 +1,7 @@
 #!/bin/bash
 # firewall — CLI управление домашним шлюзом
 # Команды: start, stop, restart, status, settings, update, logs, install, help
-
-set -e
+# No set -e here because dialog-based TUI returns non-zero on Cancel
 
 FIREWALL_ROOT="${FIREWALL_ROOT:-/opt/firewall}"
 SCRIPT_DIR="${FIREWALL_ROOT}/scripts"
@@ -111,7 +110,8 @@ cmd_status() {
 
 cmd_settings() {
     if [ -f "${SCRIPT_DIR}/setup-tui.sh" ]; then
-        sudo bash "${SCRIPT_DIR}/setup-tui.sh"
+        # Use script(1) to create a PTY for dialog-based TUI over sudo
+        SCRIPT_DIR="$SCRIPT_DIR" script -q -c "sudo bash '${SCRIPT_DIR}/setup-tui.sh'" /dev/null
     else
         echo "[!] TUI не найден: ${SCRIPT_DIR}/setup-tui.sh"
         echo "    Установите: sudo cp setup-tui.sh ${SCRIPT_DIR}/"
