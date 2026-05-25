@@ -11,18 +11,17 @@ download_bins() {
 	test -n "$mu" || die empty-mihomo-url
 	hu="$(gh_pick msoap shell2http shell2http "$ST")" || die pick-sh2
 	td="$(mktemp -d)"; trap 'rm -rf "$td"' EXIT INT
-	log mihomo; Download "$mu" "$td/a.gz"
+	log mihomo; Download "$mu" "$td/a.gz" || die "download-mihomo-failed"
 
-
-	if gzip -dc "$td/a.gz" >"$td/mihomo" 2>/dev/null; then :; elif gunzip -c "$td/a.gz" >"$td/mihomo"; then :; else die gunzip-mihomo; fi
+	if test -f "$td/a.gz"; then
+		gzip -dc "$td/a.gz" >"$td/mihomo" 2>/dev/null ||
+		gunzip -c "$td/a.gz" >"$td/mihomo" 2>/dev/null ||
+		die gunzip-mihomo
+	fi
 	_exe install -m0755 "$td/mihomo" /usr/local/bin/mihomo
-	log shell2http
+	log shell2http; Download "$hu" "$td/s.tgz" || die "download-shell2http-failed"
 
-
-	Download "$hu" "$td/s.tgz"
-
-
-	tar xzf "$td/s.tgz" -C "$td" 2>/dev/null || die untar-shell2http
+	test -f "$td/s.tgz" && tar xzf "$td/s.tgz" -C "$td" 2>/dev/null || die untar-shell2http
 
 
 	b=""

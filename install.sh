@@ -8,7 +8,7 @@
 
 # For debugging - disable set -e and enable set -x
 # set -eo pipefail
-set -x
+# set -x
 
 CDPATH=: FW_ROOT=""
 FW_ROOT="$(cd "$(dirname "$0")" && pwd)" || {

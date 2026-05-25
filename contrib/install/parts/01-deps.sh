@@ -18,13 +18,42 @@ log(){ _llog "INFO: $*"; }
 # _on_err(){ local rc=$? line=$1; _llog "ERROR: command failed at line $line (exit=$rc)"; }
 # trap '_on_err $LINENO' ERR || true
 
-if command -v curl >/dev/null 2>&1; then Download(){ curl -fsSL "$1" -o "$2"; }
-elif command -v wget >/dev/null 2>&1; then Download(){ wget -q "$1" -O "$2"; }
-else die "Need curl or wget"; fi
+# Download with retry and IPv4 fallback for unreliable networks.
+# curl → wget → python urllib (retries with -4 flag).
+if command -v curl >/dev/null 2>&1; then
+	Download(){
+		local url="$1" out="$2"
+		# try normal, then with -4 (IPv4 only), with retries
+		curl -fsSL --connect-timeout 15 --retry 3 --retry-delay 5 "$url" -o "$out" 2>/dev/null ||
+		curl -fsSL4 --connect-timeout 15 --retry 3 --retry-delay 5 "$url" -o "$out" 2>/dev/null ||
+		{ rm -f "$out"; false; }
+	}
+elif command -v wget >/dev/null 2>&1; then
+	Download(){
+		local url="$1" out="$2"
+		wget -q --timeout=15 --tries=3 "$url" -O "$out" 2>/dev/null ||
+		wget -q -4 --timeout=15 --tries=3 "$url" -O "$out" 2>/dev/null ||
+		{ rm -f "$out"; false; }
+	}
+else
+	Download(){
+		# python urllib as last resort (uses system CA bundle, IPv4 by default)
+		local url="$1" out="$2" rc=0
+		python3 -c "
+import urllib.request, sys
+try:
+    r = urllib.request.urlopen('$url', timeout=60)
+    with open('$out', 'wb') as f: f.write(r.read())
+except Exception as e:
+    sys.exit(1)
+" 2>/dev/null && return 0
+		rm -f "$out"
+		return 1
+	}
+fi
 
 _exe(){
 	if [ "${DRY_RUN:-0}" = "1" ]; then echo "+ $*"; return 0; fi
-	if _llog "CMD: $*"; then :; fi
 	if [ "$(id -u)" = "0" ]; then "$@"; else sudo "$@"; fi
 }
 PACKAGETYPE=""
