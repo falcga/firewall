@@ -51,10 +51,20 @@ sudo firewall start
 | `SHELL2HTTP_MIRROR_URL` | 2 | Для shell2http (шаблоны работают) |
 
 Пример для **GitLab Generic Package Registry** (с шаблонами — версия подтянется автоматически):
+> **Важно:** Для GitLab Generic Package Registry используйте **API URL**, а не web-интерфейс.  
+> API URL: `https://gitlab.com/api/v4/projects/PROJECT_ID/packages/generic/...`  
+> PROJECT_ID можно найти в настройках GitLab-проекта: `Settings → General → Project ID`
 ```bash
 sudo env \
   SUBSCRIPTION_URL='https://ВАША_ПОДПИСКА' \
-  MIHOMO_MIRROR_URL='https://gitlab.com/falcga/mihomo-mirror/-/packages/generic/mihomo/{version}/mihomo-linux-{arch}-{version}.gz' \
+  MIHOMO_MIRROR_URL='https://gitlab.com/api/v4/projects/ВАШ_PROJECT_ID/packages/generic/mihomo/{version}/mihomo-linux-{arch}-{version}.gz' \
+  ./install.sh -r /opt/firewall
+```
+Для вашего проекта `falcga/mihomo-mirror` Project ID = `82529981`:
+```bash
+sudo env \
+  SUBSCRIPTION_URL='https://ВАША_ПОДПИСКА' \
+  MIHOMO_MIRROR_URL='https://gitlab.com/api/v4/projects/82529981/packages/generic/mihomo/{version}/mihomo-linux-{arch}-{version}.gz' \
   ./install.sh -r /opt/firewall
 ```
 

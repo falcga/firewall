@@ -40,12 +40,14 @@ log(){ _llog "INFO: $*"; }
 if command -v curl >/dev/null 2>&1; then
 	Download(){
 		local url="$1" out="$2"
-		# try normal, then with -4 (IPv4 only), with retries.
-		# Include Accept header for GitLab Generic Package Registry which needs it to serve the raw file.
-		curl -fsSL --connect-timeout 15 --retry 3 --retry-delay 5 \
+		# -L = follow redirects (needed for GitLab, SourceForge etc.)
+		# Include Accept header for GitLab Generic Package Registry
+		curl -fSL --connect-timeout 15 --retry 3 --retry-delay 5 \
+			-L -A "firewall-installer" \
 			-H "Accept: application/octet-stream" \
 			"$url" -o "$out" 2>/dev/null ||
-		curl -fsSL4 --connect-timeout 15 --retry 3 --retry-delay 5 \
+		curl -fSL4 --connect-timeout 15 --retry 3 --retry-delay 5 \
+			-L -A "firewall-installer" \
 			-H "Accept: application/octet-stream" \
 			"$url" -o "$out" 2>/dev/null ||
 		{ rm -f "$out"; false; }
@@ -55,9 +57,11 @@ elif command -v wget >/dev/null 2>&1; then
 		local url="$1" out="$2"
 		wget -q --timeout=15 --tries=3 \
 			--header="Accept: application/octet-stream" \
+			-U "firewall-installer" \
 			"$url" -O "$out" 2>/dev/null ||
 		wget -q -4 --timeout=15 --tries=3 \
 			--header="Accept: application/octet-stream" \
+			-U "firewall-installer" \
 			"$url" -O "$out" 2>/dev/null ||
 		{ rm -f "$out"; false; }
 	}
@@ -68,7 +72,7 @@ else
 		python3 -c "
 import urllib.request, sys
 try:
-    req = urllib.request.Request('$url', headers={'Accept': 'application/octet-stream'})
+    req = urllib.request.Request('$url', headers={'Accept': 'application/octet-stream', 'User-Agent': 'firewall-installer'})
     r = urllib.request.urlopen(req, timeout=60)
     with open('$out', 'wb') as f: f.write(r.read())
 except Exception as e:
