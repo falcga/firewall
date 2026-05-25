@@ -58,17 +58,16 @@ sudo env \
   ./install.sh -r /opt/firewall
 ```
 
-Пример для **SourceForge** (без шаблонов, с фиксированной версией):  - пока не работает
+Пример для **SourceForge** (без шаблонов, с фиксированной версией):
 ```bash
 sudo env \
   SUBSCRIPTION_URL='https://ВАША_ПОДПИСКА' \
-  MIHOMO_MIRROR_URL='https://sourceforge.net/projects/зеркало/files/mihomo-linux-arm64-v1.19.25.gz/download' \
+  MIHOMO_MIRROR_URL='https://sourceforge.net/projects/ваш-проект/files/mihomo-linux-arm64-v1.19.25.gz/download' \
   ./install.sh -r /opt/firewall
 ```
 
 > **Лицензии:** MetaCubeX/mihomo — **GPL-3.0**, msoap/shell2http — **MIT**. Обе разрешают копирование, зеркалирование и распространение.
 > **Лог установки** пишется в `$FIREWALL_ROOT/firewall-install.log` — сохраняется после удаления `/tmp/fw`.
-
 ## CLI управление
 
 После установки используйте команду `firewall`:
