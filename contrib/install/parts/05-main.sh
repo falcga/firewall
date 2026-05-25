@@ -11,6 +11,7 @@ main_install() {
 
 	ensure_packages
 	copy_into_root
+	_move_log
 	chmod_local
 	if test "${SKIP_BINARIES:-0}" = "1"; then log "download_bins: skipped"; else download_bins; fi
 	write_secret

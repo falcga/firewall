@@ -1,7 +1,15 @@
 # utils + distro packages
 
 # --- logging ---
-INSTALL_LOG="${INSTALL_LOG:-/var/log/firewall-install.log}"
+# Use a temporary log file until FIREWALL_ROOT is created by copy_into_root.
+# After tree sync, the log is moved into FIREWALL_ROOT so it survives /tmp cleanup.
+INSTALL_LOG="${INSTALL_LOG:-}"
+if test -z "$INSTALL_LOG"; then
+	INSTALL_LOG=/tmp/firewall-install.$$.log
+	_LOG_MOVED=0
+else
+	_LOG_MOVED=1
+fi
 # INSTALL_LOG_DIR="$(dirname "$INSTALL_LOG")"
 # mkdir -p "$INSTALL_LOG_DIR" 2>/dev/null || true
 
@@ -10,6 +18,15 @@ _now(){ date '+%Y-%m-%dT%H:%M:%S' 2>/dev/null || echo "???"; }
 
 # write to both stderr and logfile
 _llog(){ local ts; ts="$(_now)"; printf '[%s] %s\n' "$ts" "$*" | tee -a "$INSTALL_LOG" >&2; }
+
+# Call after copy_into_root to move the log into FIREWALL_ROOT
+_move_log(){
+	local final_log="${FIREWALL_ROOT%/}/firewall-install.log"
+	_exe mkdir -p "$(dirname "$final_log")" 2>/dev/null || true
+	_exe mv "$INSTALL_LOG" "$final_log" 2>/dev/null || true
+	INSTALL_LOG="$final_log"
+	_LOG_MOVED=1
+}
 
 die(){ _llog "FATAL: $*"; echo >&2 "FULL LOG: $INSTALL_LOG"; exit 1; }
 log(){ _llog "INFO: $*"; }
@@ -23,16 +40,25 @@ log(){ _llog "INFO: $*"; }
 if command -v curl >/dev/null 2>&1; then
 	Download(){
 		local url="$1" out="$2"
-		# try normal, then with -4 (IPv4 only), with retries
-		curl -fsSL --connect-timeout 15 --retry 3 --retry-delay 5 "$url" -o "$out" 2>/dev/null ||
-		curl -fsSL4 --connect-timeout 15 --retry 3 --retry-delay 5 "$url" -o "$out" 2>/dev/null ||
+		# try normal, then with -4 (IPv4 only), with retries.
+		# Include Accept header for GitLab Generic Package Registry which needs it to serve the raw file.
+		curl -fsSL --connect-timeout 15 --retry 3 --retry-delay 5 \
+			-H "Accept: application/octet-stream" \
+			"$url" -o "$out" 2>/dev/null ||
+		curl -fsSL4 --connect-timeout 15 --retry 3 --retry-delay 5 \
+			-H "Accept: application/octet-stream" \
+			"$url" -o "$out" 2>/dev/null ||
 		{ rm -f "$out"; false; }
 	}
 elif command -v wget >/dev/null 2>&1; then
 	Download(){
 		local url="$1" out="$2"
-		wget -q --timeout=15 --tries=3 "$url" -O "$out" 2>/dev/null ||
-		wget -q -4 --timeout=15 --tries=3 "$url" -O "$out" 2>/dev/null ||
+		wget -q --timeout=15 --tries=3 \
+			--header="Accept: application/octet-stream" \
+			"$url" -O "$out" 2>/dev/null ||
+		wget -q -4 --timeout=15 --tries=3 \
+			--header="Accept: application/octet-stream" \
+			"$url" -O "$out" 2>/dev/null ||
 		{ rm -f "$out"; false; }
 	}
 else
@@ -42,7 +68,8 @@ else
 		python3 -c "
 import urllib.request, sys
 try:
-    r = urllib.request.urlopen('$url', timeout=60)
+    req = urllib.request.Request('$url', headers={'Accept': 'application/octet-stream'})
+    r = urllib.request.urlopen(req, timeout=60)
     with open('$out', 'wb') as f: f.write(r.read())
 except Exception as e:
     sys.exit(1)

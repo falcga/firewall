@@ -20,12 +20,9 @@ export FW_ROOT FIREWALL_ROOT="${FIREWALL_ROOT:-/opt/firewall}"
 SCRIPT_DIR="$FW_ROOT"
 export SCRIPT_DIR
 
-# --- log everything (default to FIREWALL_ROOT so log survives after /tmp is cleaned) ---
-INSTALL_LOG="${INSTALL_LOG:-${FIREWALL_ROOT}/firewall-install.log}"
-
 echo "=== firewall install started $(date -Iseconds 2>/dev/null || date) ===" >&2
 echo "FIREWALL_ROOT=$FIREWALL_ROOT" >&2
-echo "log: $INSTALL_LOG" >&2
+echo "log: ${INSTALL_LOG:-/tmp/firewall-install.$$.log}" >&2
 echo "" >&2
 
 . "${FW_ROOT}/contrib/install/driver.sh"
