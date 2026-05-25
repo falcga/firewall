@@ -35,9 +35,15 @@ AUTO_SYNC="${AUTO_SYNC:-yes}"
 EOF
 }
 
-# Проверка dialog
+# Проверка dialog и терминала
 if ! command -v dialog >/dev/null 2>&1; then
     echo "dialog не установлен. Установите: sudo apt-get install -y dialog"
+    exit 1
+fi
+if ! test -t 0 2>/dev/null || ! test -c /dev/tty 2>/dev/null; then
+    echo "TUI требует интерактивного терминала."
+    echo "Запустите: sudo firewall settings"
+    echo "Или подключитесь по SSH: ssh falcga@192.168.50.2"
     exit 1
 fi
 
