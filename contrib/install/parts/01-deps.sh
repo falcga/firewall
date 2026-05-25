@@ -85,7 +85,7 @@ fi
 
 _exe(){
 	if [ "${DRY_RUN:-0}" = "1" ]; then echo "+ $*"; return 0; fi
-	if [ "$(id -u)" = "0" ]; then "$@"; else sudo "$@"; fi
+	if [ "$(id -u)" = "0" ]; then "$@"; else sudo -E "$@"; fi
 }
 PACKAGETYPE=""
 detect_pkg(){
