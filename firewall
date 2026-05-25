@@ -110,8 +110,8 @@ cmd_status() {
 
 cmd_settings() {
     if [ -f "${SCRIPT_DIR}/setup-tui.sh" ]; then
-        # Use script(1) to create a PTY for dialog-based TUI over sudo
-        SCRIPT_DIR="$SCRIPT_DIR" script -q -c "sudo bash '${SCRIPT_DIR}/setup-tui.sh'" /dev/null
+        # -E preserves environment (MIHOMO_MIRROR_URL etc.)
+        sudo -E bash "${SCRIPT_DIR}/setup-tui.sh"
     else
         echo "[!] TUI не найден: ${SCRIPT_DIR}/setup-tui.sh"
         echo "    Установите: sudo cp setup-tui.sh ${SCRIPT_DIR}/"
