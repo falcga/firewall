@@ -53,15 +53,45 @@ sudo firewall help        # Справка
 sudo bash /opt/firewall/scripts/setup-tui.sh
 ```
 
-**Разделы TUI:**
-- 🌐 **VPN режим** — split (только заблокированные) / tunnel (весь трафик)
-- 🛡️ **Zapret DPI** — установка zapret, выбор стратегий (nfqws/tpws), настройка параметров
-- 📋 **Списки хостов** — импорт доменов, просмотр/обновление списков
-- 🖥️ **Панель** — настройка nginx + shell2http
-- 🔧 **Сервисы** — запуск/остановка/рестарт, автозапуск
-- ⚡ **Powerbank** — режим энергосбережения
-- 🔄 **Синхронизация** — обновление списков, geodata, подписки
-- 📊 **Статус** — состояние всех компонентов
+### Разделы TUI:
+
+| # | Раздел | Описание |
+|---|--------|----------|
+| 1 | 🌐 **VPN режим** | split / tunnel |
+| 2 | 🛡️ **Zapret DPI** | установка zapret, стратегии, параметры |
+| 3 | 📋 **Списки хостов** | импорт, просмотр, обновление |
+| 4 | 🔌 **Управление прокси (v2rayN-like)** | CRUD прокси, URI импорт, переключение |
+| 5 | 📡 **Подписки прокси** | добавление, обновление, управление |
+| 6 | 🖥️ **Панель** | настройка nginx + shell2http |
+| 7 | 🔧 **Сервисы** | запуск/остановка/перезапуск, автозапуск |
+| 8 | ⚡ **Powerbank** | режим энергосбережения |
+| 9 | 🔄 **Синхронизация** | обновление списков, geodata, подписки |
+| 10 | 📊 **Статус** | состояние всех компонентов |
+
+### Управление прокси (v2rayN-like)
+
+Позволяет управлять прокси-серверами в стиле v2rayN, но в bash-интерфейсе:
+
+- **Список прокси** — просмотр всех добавленных прокси с указанием активного
+- **Добавить прокси** — импорт через URI (vless://, vmess://, trojan://)
+- **Редактировать** — замена конфигурации
+- **Удалить** — удаление конфигурации
+- **Переключить активное** — выбор активного прокси
+- **Рестарт Mihomo** — перезапуск бэкенда
+- **Логи Mihomo** — просмотр последних строк лога
+- **Системное прокси** — включение/выключение системного прокси (ОС-зависимое)
+- **Обновить Geo-базы** — скачивание geoip.dat + geosite.dat
+
+### Подписки прокси
+
+Подписки прокси-серверов (аналогично v2rayN):
+
+- **Список подписок** — просмотр добавленных URL
+- **Добавить подписку** — указать название и URL
+- **Удалить** — удаление подписки
+- **Вкл/Выкл** — активация/деактивация
+- **Обновить одну** — загрузить и импортировать прокси из конкретной подписки
+- **Обновить ВСЕ** — массовое обновление всех активных подписок
 
 ## Веб-панель
 
@@ -69,15 +99,39 @@ sudo bash /opt/firewall/scripts/setup-tui.sh
 http://<IP_на_Pi>:8088/dashboard/
 ```
 
-**API endpoints:**
+### API endpoints (shell2http):
+
+**Основные:**
 - `POST /api/full-refresh` — полное обновление
-- `POST /api/subscription-refresh` — обновить подписку
+- `POST /api/subscription-refresh` — обновить подписку Mihomo
 - `POST /api/sync-build` — синхронизировать списки
 - `POST /api/zapret-restart` — рестарт zapret
 - `POST /api/mihomo-restart` — рестарт mihomo
 - `POST /api/bypass-off` — выключить обходы
 - `POST /api/bypass-on` — включить обходы
 - `POST /api/low-power-on/off` — powerbank режим
+
+**Управление прокси (v2rayN-like):**
+- `GET  /api/proxy-status` — статус прокси (Mihomo + system proxy)
+- `GET  /api/proxy-list` — список всех прокси (JSON)
+- `POST /api/proxy-add` — добавить прокси (body: URI)
+- `POST /api/proxy-delete` — удалить прокси (body: index)
+- `POST /api/proxy-toggle` — переключить активное (body: index)
+- `GET  /api/mihomo-logs` — последние 100 строк лога
+- `POST /api/geo-update` — обновить geodata
+
+**Подписки:**
+- `GET  /api/sub-list` — список подписок (JSON)
+- `POST /api/sub-add` — добавить подписку (body: name + url)
+- `POST /api/sub-remove` — удалить подписку (body: index)
+- `POST /api/sub-toggle` — вкл/выкл (body: index)
+- `POST /api/sub-fetch` — обновить одну (body: url)
+- `POST /api/sub-update-all` — обновить все активные
+
+**Системное прокси:**
+- `POST /api/sysproxy-on` — включить системный прокси
+- `POST /api/sysproxy-off` — выключить системный прокси
+- `GET  /api/sysproxy-status` — статус системного прокси
 
 ## Структура проекта
 
@@ -91,16 +145,29 @@ firewall/
 │   ├── upstream/           ← списки Flowseal (скачиваются)
 │   └── user/               ← пользовательские домены
 ├── contrib/
+│   ├── shell2http-launcher.sh  ← маршруты shell2http (включая proxy API)
+│   ├── shell2http.service.example
 │   └── install/
-│       └── parts/          ← оригинальные parts из falcga/firewall
+│       └── parts/
 ├── deploy/
+│   └── mihomo/
+│       └── config.head.yaml.tpl
 ├── scripts/
-│   └── setup-tui.sh        ← интерактивная настройка
+│   ├── setup-tui.sh        ← интерактивная настройка (dialog)
+│   ├── proxy-mgmt.sh       ← управление прокси/подписками (bash)
+│   ├── proxy-parse.py      ← парсинг URI/base64 (только Python)
+│   ├── lib.sh              ← общие функции/логирование
+│   ├── sync-geodat.sh      ← обновление geoip/geosite
+│   ├── gen-mihomo-config.sh
+│   ├── svc-restart-mihomo.sh
+│   ├── svc-restart-zapret.sh
+│   └── ...                 ← остальные скрипты
 ├── secrets/
 │   └── subscription.url    ← ваша подписка (создаётся при установке)
 ├── srv/
 │   └── dashboard/
 │       └── index.html      ← веб-панель
+├── v2ray_tui/              ← вспомогательные данные (configs.json, subscriptions.json)
 └── state/
     ├── generated/          ← сгенерированные списки zapret
     └── geodata/            ← geoip.dat + geosite.dat
@@ -109,9 +176,9 @@ firewall/
 ## Требования
 
 - Linux с `systemd` (Debian / Raspberry Pi OS / Ubuntu)
-- `curl`, `git`, `dialog`, `nftables`
+- `curl`, `git`, `dialog`, `nftables`, `python3` (только для парсинга URI)
 - ~100 МБ свободного места после установки
-- ~1 ГБ RAM для полного обновления
+- ~256 МБ RAM (минимально) для работы
 
 ## Безопасность
 
@@ -144,6 +211,9 @@ cat /tmp/zapret-install.log
 sudo journalctl -u mihomo.service -n 50
 sudo journalctl -u zapret.service -n 50
 sudo journalctl -u firewall-shell2http.service -n 50
+
+# Логи TUI и скриптов
+cat /opt/firewall/logs/firewall-update.log
 
 # Проверка процессов
 pgrep -a nfqws
