@@ -30,4 +30,27 @@ exec "$BIN" -host "$HOST" -port "$PORT" -add-exit \
   /detect-bypass          "bash '$ROOT/scripts/detect-bypass.sh'" \
   /vpn-up                 "bash '$ROOT/scripts/vpn-up.sh'" \
   /vpn-down               "bash '$ROOT/scripts/vpn-down.sh'" \
-  /vpn-status             "bash '$ROOT/scripts/vpn-status.sh'"
+  /vpn-status             "bash '$ROOT/scripts/vpn-status.sh'" \
+  \
+  # ─── Proxy Management API ──────────────────────────────────────────── \
+  /proxy-list             "bash '$ROOT/scripts/proxy-mgmt.sh' list" \
+  /proxy-status           "bash '$ROOT/scripts/proxy-mgmt.sh' status" \
+  /proxy-count            "bash '$ROOT/scripts/proxy-mgmt.sh' count" \
+  /proxy-add              "read uri; bash '$ROOT/scripts/proxy-mgmt.sh' add \"\$uri\"" \
+  /proxy-delete           "read idx; bash '$ROOT/scripts/proxy-mgmt.sh' delete \"\$idx\"" \
+  /proxy-toggle           "read idx; bash '$ROOT/scripts/proxy-mgmt.sh' toggle \"\$idx\"" \
+  /mihomo-logs            "bash '$ROOT/scripts/proxy-mgmt.sh' mihomo-logs 100" \
+  /geo-update             "bash '$ROOT/scripts/proxy-mgmt.sh' geo-update" \
+  \
+  # ─── Subscription API ───────────────────────────────────────────────── \
+  /sub-list               "bash '$ROOT/scripts/proxy-mgmt.sh' sub-list" \
+  /sub-add                "read -r name url; bash '$ROOT/scripts/proxy-mgmt.sh' sub-add \"\$name\" \"\$url\"" \
+  /sub-remove             "read idx; bash '$ROOT/scripts/proxy-mgmt.sh' sub-remove \"\$idx\"" \
+  /sub-toggle             "read idx; bash '$ROOT/scripts/proxy-mgmt.sh' sub-toggle \"\$idx\"" \
+  /sub-fetch              "read url; bash '$ROOT/scripts/proxy-mgmt.sh' sub-fetch \"\$url\"" \
+  /sub-update-all         "bash '$ROOT/scripts/proxy-mgmt.sh' sub-update-all" \
+  \
+  # ─── System Proxy API ───────────────────────────────────────────────── \
+  /sysproxy-on            "bash '$ROOT/scripts/proxy-mgmt.sh' sysproxy-on ${2:-127.0.0.1} ${3:-7890}" \
+  /sysproxy-off           "bash '$ROOT/scripts/proxy-mgmt.sh' sysproxy-off" \
+  /sysproxy-status        "bash '$ROOT/scripts/proxy-mgmt.sh' sysproxy-status"

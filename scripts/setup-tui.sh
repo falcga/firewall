@@ -87,30 +87,34 @@ main_menu() {
         choice=$(dialog --clear \
             --backtitle "Firewall Setup" \
             --title "Главное меню" \
-            --menu "Выберите раздел настройки:" 20 70 12 \
+            --menu "Выберите раздел настройки:" 22 72 15 \
             1 "🌐 VPN режим (split/tunnel)" \
             2 "🛡️ Zapret DPI настройки" \
             3 "📋 Списки хостов (hostlist)" \
-            4 "🖥️ Панель управления (nginx)" \
-            5 "🔧 Сервисы и автозапуск" \
-            6 "⚡ Powerbank режим" \
-            7 "🔄 Синхронизация и обновление" \
-            8 "📊 Статус и диагностика" \
-            9 "💾 Сохранить и выйти" \
-            10 "❌ Выйти без сохранения" \
+            4 "🔌 Управление прокси (v2rayN-like)" \
+            5 "📡 Подписки прокси" \
+            6 "🖥️ Панель управления (nginx)" \
+            7 "🔧 Сервисы и автозапуск" \
+            8 "⚡ Powerbank режим" \
+            9 "🔄 Синхронизация и обновление" \
+            10 "📊 Статус и диагностика" \
+            11 "💾 Сохранить и выйти" \
+            12 "❌ Выйти без сохранения" \
             2>&1 >/dev/tty)
 
         case "$choice" in
             1) vpn_mode_menu ;;
             2) zapret_menu ;;
             3) hostlist_menu ;;
-            4) panel_menu ;;
-            5) services_menu ;;
-            6) power_menu ;;
-            7) sync_menu ;;
-            8) status_menu ;;
-            9) save_and_exit ;;
-            10) clear; exit 0 ;;
+            4) proxy_menu ;;
+            5) subscription_menu ;;
+            6) panel_menu ;;
+            7) services_menu ;;
+            8) power_menu ;;
+            9) sync_menu ;;
+            10) status_menu ;;
+            11) save_and_exit ;;
+            12) clear; exit 0 ;;
             *) clear; exit 0 ;;
         esac
     done
@@ -747,6 +751,268 @@ status_menu() {
     fi
 
     dialog --msgbox "$status" 25 80
+}
+
+# ─── 4. Proxy Management (v2rayN-like) ─────────────────────────────────────
+proxy_menu() {
+    while true; do
+        # Получаем статус прокси
+        local proxy_status=$(bash "$SCRIPT_DIR/proxy-mgmt.sh" status 2>/dev/null || echo "N/A")
+        local proxy_count=$(bash "$SCRIPT_DIR/proxy-mgmt.sh" count 2>/dev/null || echo "0")
+        
+        p_choice=$(dialog --clear --backtitle "Firewall Setup" \
+            --title "Управление прокси (v2rayN-like)" \
+            --menu "Статус: $proxy_status\n\nВыберите действие:" 20 72 12 \
+            1 "📋 Список прокси" \
+            2 "➕ Добавить прокси (URI)" \
+            3 "✏️  Редактировать прокси" \
+            4 "🗑️  Удалить прокси" \
+            5 "🔀 Переключить активное прокси" \
+            6 "🔄 Рестарт Mihomo" \
+            7 "📊 Логи Mihomo (последние 50 строк)" \
+            8 "🌐 Системное прокси — включить" \
+            9 "🌐 Системное прокси — выключить" \
+            10 "🌍 Обновить Geo-базы" \
+            11 "📡 Подписки прокси" \
+            12 "🔙 Назад" \
+            2>&1 >/dev/tty)
+
+        case $? in
+            1|255) break ;;
+        esac
+
+        case "$p_choice" in
+            1)
+                # Список прокси — показываем в textbox
+                local list_file="${STATE_DIR}/proxy_list.tmp"
+                bash "$SCRIPT_DIR/proxy-mgmt.sh" list 2>/dev/null | python3 -c "
+import json,sys
+cfg=json.load(sys.stdin)
+if not cfg:
+    print('Нет настроенных прокси')
+else:
+    for i,c in enumerate(cfg):
+        active='✓ ACTIVE' if c.get('active') else '   '
+        print(f'{i}. {active} | {c.get(\"remark\",\"?\")} | {c.get(\"protocol\",\"?\")} | {c.get(\"server\",\"?\")}:{c.get(\"port\",\"?\")}')
+" > "$list_file" 2>/dev/null
+                if [ -s "$list_file" ]; then
+                    dialog --textbox "$list_file" 20 70
+                else
+                    dialog --msgbox "Нет настроенных прокси." 6 30
+                fi
+                rm -f "$list_file"
+                ;;
+            2)
+                # Добавить прокси
+                proxy_uri=$(dialog --clear --backtitle "Firewall Setup" \
+                    --title "Добавить прокси" \
+                    --inputbox "Введите URI прокси (vless://, vmess://, trojan://):" 10 65 \
+                    2>&1 >/dev/tty)
+                if [ -n "$proxy_uri" ]; then
+                    dialog --infobox "Добавление прокси..." 3 30
+                    result=$(bash "$SCRIPT_DIR/proxy-mgmt.sh" add "$proxy_uri" 2>&1 || echo "ERROR")
+                    if echo "$result" | grep -q "ERROR"; then
+                        dialog --msgbox "❌ Ошибка: не удалось разобрать URI.\n\nПоддерживаются vless://, vmess://, trojan://" 8 50
+                    else
+                        dialog --msgbox "✅ Прокси добавлен!" 6 30
+                    fi
+                fi
+                ;;
+            3)
+                # Редактировать прокси — удалить старую и добавить новую
+                local idx=$(dialog --clear --backtitle "Firewall Setup" \
+                    --title "Редактировать прокси" \
+                    --inputbox "Введите номер прокси для редактирования (см. список):" 10 50 \
+                    2>&1 >/dev/tty)
+                if [ -n "$idx" ]; then
+                    new_uri=$(dialog --clear --backtitle "Firewall Setup" \
+                        --title "Новое значение" \
+                        --inputbox "Введите новый URI прокси:" 10 65 \
+                        2>&1 >/dev/tty)
+                    if [ -n "$new_uri" ]; then
+                        dialog --infobox "Удаление старого и добавление нового..." 3 40
+                        bash "$SCRIPT_DIR/proxy-mgmt.sh" delete "$idx" 2>/dev/null || true
+                        result=$(bash "$SCRIPT_DIR/proxy-mgmt.sh" add "$new_uri" 2>&1 || echo "ERROR")
+                        if echo "$result" | grep -q "ERROR"; then
+                            dialog --msgbox "❌ Не удалось разобрать новый URI." 6 40
+                        else
+                            dialog --msgbox "✅ Прокси обновлён!" 6 30
+                        fi
+                    fi
+                fi
+                ;;
+            4)
+                # Удалить прокси
+                local idx=$(dialog --clear --backtitle "Firewall Setup" \
+                    --title "Удалить прокси" \
+                    --inputbox "Введите номер прокси для удаления (см. список):" 10 50 \
+                    2>&1 >/dev/tty)
+                if [ -n "$idx" ]; then
+                    dialog --yesno "Удалить прокси #$idx?" 6 30
+                    if [ $? -eq 0 ]; then
+                        name=$(bash "$SCRIPT_DIR/proxy-mgmt.sh" delete "$idx" 2>&1 || echo "?")
+                        dialog --msgbox "✅ Прокси '$name' удалён." 6 40
+                    fi
+                fi
+                ;;
+            5)
+                # Переключить активное прокси
+                local idx=$(dialog --clear --backtitle "Firewall Setup" \
+                    --title "Переключить прокси" \
+                    --inputbox "Введите номер прокси для активации (см. список):" 10 50 \
+                    2>&1 >/dev/tty)
+                if [ -n "$idx" ]; then
+                    name=$(bash "$SCRIPT_DIR/proxy-mgmt.sh" toggle "$idx" 2>&1 || echo "?")
+                    dialog --msgbox "✅ Прокси '$name' переключён." 6 40
+                fi
+                ;;
+            6)
+                dialog --infobox "Рестарт Mihomo..." 3 25
+                bash "$SCRIPT_DIR/proxy-mgmt.sh" mihomo-restart 2>/dev/null || \
+                sudo systemctl restart mihomo.service 2>/dev/null || true
+                dialog --msgbox "Mihomo перезапущен." 6 30
+                ;;
+            7)
+                local log_file="${STATE_DIR}/mihomo_logs.tmp"
+                bash "$SCRIPT_DIR/proxy-mgmt.sh" mihomo-logs 100 > "$log_file" 2>/dev/null
+                if [ -s "$log_file" ]; then
+                    dialog --textbox "$log_file" 25 90
+                else
+                    dialog --msgbox "Логи Mihomo недоступны." 6 30
+                fi
+                rm -f "$log_file"
+                ;;
+            8)
+                dialog --infobox "Включение системного прокси..." 3 30
+                bash "$SCRIPT_DIR/proxy-mgmt.sh" sysproxy-on 127.0.0.1 7890 2>/dev/null
+                dialog --msgbox "Системный прокси включён (127.0.0.1:7890)." 6 40
+                ;;
+            9)
+                dialog --infobox "Выключение системного прокси..." 3 30
+                bash "$SCRIPT_DIR/proxy-mgmt.sh" sysproxy-off 2>/dev/null
+                dialog --msgbox "Системный прокси выключён." 6 30
+                ;;
+            10)
+                dialog --infobox "Обновление Geo-баз... (может занять время)" 3 40
+                bash "$SCRIPT_DIR/proxy-mgmt.sh" geo-update 2>/dev/null
+                dialog --msgbox "Geo-базы обновлены." 6 30
+                ;;
+            11)
+                subscription_menu
+                ;;
+            12) break ;;
+        esac
+    done
+}
+
+# ─── 5. Subscription Management ────────────────────────────────────────────
+subscription_menu() {
+    while true; do
+        s_choice=$(dialog --clear --backtitle "Firewall Setup" \
+            --title "Подписки прокси" \
+            --menu "Управление подписками:" 18 72 8 \
+            1 "📋 Список подписок" \
+            2 "➕ Добавить подписку" \
+            3 "🗑️  Удалить подписку" \
+            4 "🔀 Вкл/Выкл подписку" \
+            5 "📥 Обновить одну подписку" \
+            6 "📥📥 Обновить ВСЕ подписки" \
+            7 "🌍 Обновить Geo-базы" \
+            8 "🔙 Назад" \
+            2>&1 >/dev/tty)
+
+        case $? in
+            1|255) break ;;
+        esac
+
+        case "$s_choice" in
+            1)
+                local sub_file="${STATE_DIR}/sub_list.tmp"
+                local subs=$(cat "$SCRIPT_DIR/../v2ray_tui/subscriptions.json" 2>/dev/null || echo "[]")
+                echo "$subs" | python3 -c "
+import json,sys
+subs=json.load(sys.stdin)
+if not subs:
+    print('Нет подписок')
+else:
+    for i,s in enumerate(subs):
+        status='✓ ON' if s.get('enabled',True) else '✗ OFF'
+        updated=s.get('last_updated','никогда')
+        print(f'{i}. [{status}] {s.get(\"name\",\"?\")}')
+        print(f'   URL: {s.get(\"url\",\"?\")}')
+        print(f'   Обновлена: {updated}')
+        print()
+" > "$sub_file" 2>/dev/null
+                if [ -s "$sub_file" ]; then
+                    dialog --textbox "$sub_file" 20 70
+                else
+                    dialog --msgbox "Нет подписок." 6 30
+                fi
+                rm -f "$sub_file"
+                ;;
+            2)
+                name=$(dialog --clear --backtitle "Firewall Setup" \
+                    --title "Добавить подписку" \
+                    --inputbox "Название подписки:" 8 50 \
+                    2>&1 >/dev/tty)
+                if [ -n "$name" ]; then
+                    url=$(dialog --clear --backtitle "Firewall Setup" \
+                        --title "Добавить подписку" \
+                        --inputbox "URL подписки:" 8 65 \
+                        2>&1 >/dev/tty)
+                    if [ -n "$url" ]; then
+                        bash "$SCRIPT_DIR/proxy-mgmt.sh" sub-add "$name" "$url"
+                        dialog --msgbox "✅ Подписка '$name' добавлена." 6 40
+                    fi
+                fi
+                ;;
+            3)
+                idx=$(dialog --clear --backtitle "Firewall Setup" \
+                    --title "Удалить подписку" \
+                    --inputbox "Введите номер подписки:" 8 40 \
+                    2>&1 >/dev/tty)
+                if [ -n "$idx" ]; then
+                    dialog --yesno "Удалить подписку #$idx?" 6 30
+                    if [ $? -eq 0 ]; then
+                        name=$(bash "$SCRIPT_DIR/proxy-mgmt.sh" sub-remove "$idx" 2>&1 || echo "?")
+                        dialog --msgbox "✅ Подписка '$name' удалена." 6 40
+                    fi
+                fi
+                ;;
+            4)
+                idx=$(dialog --clear --backtitle "Firewall Setup" \
+                    --title "Вкл/Выкл подписку" \
+                    --inputbox "Введите номер подписки:" 8 40 \
+                    2>&1 >/dev/tty)
+                if [ -n "$idx" ]; then
+                    bash "$SCRIPT_DIR/proxy-mgmt.sh" sub-toggle "$idx"
+                    dialog --msgbox "Статус подписки #$idx переключён." 6 40
+                fi
+                ;;
+            5)
+                idx=$(dialog --clear --backtitle "Firewall Setup" \
+                    --title "Обновить подписку" \
+                    --inputbox "Введите номер подписки для обновления:" 8 50 \
+                    2>&1 >/dev/tty)
+                if [ -n "$idx" ]; then
+                    dialog --infobox "Обновление подписки #$idx... (может занять время)" 3 50
+                    bash "$SCRIPT_DIR/proxy-mgmt.sh" sub-update "$idx" 2>/dev/null
+                    dialog --msgbox "Подписка #$idx обновлена." 6 30
+                fi
+                ;;
+            6)
+                dialog --infobox "Обновление ВСЕХ подписок... (может занять время)" 3 55
+                result=$(bash "$SCRIPT_DIR/proxy-mgmt.sh" sub-update-all 2>&1 || echo "ERROR")
+                dialog --msgbox "Результат: $result" 8 50
+                ;;
+            7)
+                dialog --infobox "Обновление Geo-баз... (может занять время)" 3 45
+                bash "$SCRIPT_DIR/proxy-mgmt.sh" geo-update 2>/dev/null
+                dialog --msgbox "Geo-базы обновлены." 6 30
+                ;;
+            8) break ;;
+        esac
+    done
 }
 
 # Сохранить и выйти
